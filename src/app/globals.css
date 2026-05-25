@@ -71,6 +71,9 @@ body {
   background: var(--surface);
   color: var(--text);
 }
+.crystal-nav-link:hover svg {
+  color: var(--text-dim) !important;
+}
 
 /* Table row hover */
 .crystal-table-row:hover td {

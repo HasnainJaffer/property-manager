@@ -14,7 +14,6 @@ import {
   IconUsersGroup,
   IconSettings,
   IconLogout,
-  IconChevronRight,
 } from '@tabler/icons-react'
 import { createClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/lib/types'
@@ -119,7 +118,7 @@ export default function Sidebar({
       height: '100%',
       padding: '16px 14px 18px',
       borderRight: '1px solid var(--border)',
-      background: 'linear-gradient(180deg, var(--surface) 0%, transparent 100%)',
+      background: 'linear-gradient(180deg, var(--surface) 0%, transparent 90%)',
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
       position: 'relative',
@@ -148,7 +147,7 @@ export default function Sidebar({
       {/* ── Org card ────────────────────────────────────────────────── */}
       <div style={{
         padding: '10px 12px', borderRadius: 10,
-        background: 'var(--surface)', border: '1px solid var(--border)',
+        background: 'var(--surface-2)', border: '1px solid var(--border-2)',
         display: 'flex', flexDirection: 'column', gap: 2,
       }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -214,7 +213,11 @@ export default function Sidebar({
                       <item.icon
                         size={17}
                         strokeWidth={1.6}
-                        style={{ color: isActive ? 'var(--indigo)' : undefined, flexShrink: 0 }}
+                        style={{
+                          flexShrink: 0,
+                          color: isActive ? 'var(--indigo)' : 'var(--text-mute)',
+                          transition: 'color .15s',
+                        }}
                       />
                       <span style={{ flex: 1 }}>{item.label}</span>
 
@@ -240,11 +243,11 @@ export default function Sidebar({
         </LayoutGroup>
       </nav>
 
-      {/* ── User profile card ───────────────────────────────────────── */}
+      {/* ── User profile card — matches org card styling ────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: 10, borderRadius: 10,
-        border: '1px solid var(--border)', background: 'var(--surface)',
+        border: '1px solid var(--border-2)', background: 'var(--surface-2)',
       }}>
         {/* Gradient avatar */}
         <div style={{
