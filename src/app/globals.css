@@ -1,26 +1,142 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Crystal design system ────────────────────────────────────────────────────
+   Dark theme is the default. Light theme applies when data-theme="light"
+   is set on the <html> element.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --bg:         #07090f;
+  --bg-grad-1:  #1e1b4b;
+  --bg-grad-2:  #0c4a6e;
+  --surface:    rgba(255,255,255,0.04);
+  --surface-2:  rgba(255,255,255,0.06);
+  --surface-3:  rgba(255,255,255,0.09);
+  --border:     rgba(255,255,255,0.07);
+  --border-2:   rgba(255,255,255,0.12);
+  --text:       #e7ecf3;
+  --text-dim:   #98a2b3;
+  --text-mute:  #66707d;
+  --indigo:     #818cf8;
+  --indigo-2:   #6366f1;
+  --cyan:       #22d3ee;
+  --mint:       #34d399;
+  --amber:      #fbbf24;
+  --rose:       #fb7185;
+  --glow-i:     rgba(99,102,241,0.35);
+  --glow-c:     rgba(34,211,238,0.25);
+  --row-hover:  rgba(255,255,255,0.03);
+}
+
+[data-theme="light"] {
+  --bg:         #eef1f8;
+  --bg-grad-1:  #c7d2fe;
+  --bg-grad-2:  #a5f3fc;
+  --surface:    rgba(255,255,255,0.66);
+  --surface-2:  rgba(255,255,255,0.78);
+  --surface-3:  rgba(255,255,255,0.92);
+  --border:     rgba(15,23,42,0.07);
+  --border-2:   rgba(15,23,42,0.12);
+  --text:       #0f172a;
+  --text-dim:   #475569;
+  --text-mute:  #94a3b8;
+  --indigo:     #4f46e5;
+  --indigo-2:   #4338ca;
+  --cyan:       #0891b2;
+  --mint:       #059669;
+  --amber:      #b45309;
+  --rose:       #be123c;
+  --glow-i:     rgba(99,102,241,0.55);
+  --glow-c:     rgba(34,211,238,0.45);
+  --row-hover:  rgba(15,23,42,0.035);
+}
+
+html, body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
+
+/* Nav link hover — needs CSS variable so cannot be pure Tailwind */
+.crystal-nav-link:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Table row hover */
+.crystal-table-row:hover td {
+  background: var(--row-hover);
+}
+
+/* Crystal card — glassmorphism surface */
+.crystal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.06) inset,
+    0 12px 30px -10px rgba(0,0,0,0.45);
+}
+
+[data-theme="light"] .crystal-card {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.8) inset,
+    0 12px 30px -14px rgba(15,23,42,0.18);
+}
+
+/* Progress bar fill (occupancy, rent collection) */
+.crystal-progress {
+  position: relative;
+  height: 6px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.crystal-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, var(--mint), var(--cyan));
+  border-radius: 6px;
+}
+
+/* Pill / badge base */
+.crystal-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.crystal-pill.healthy { color: var(--mint);  border-color: rgba(52,211,153,.25);  background: rgba(52,211,153,.08); }
+.crystal-pill.arrears { color: var(--rose);  border-color: rgba(251,113,133,.25); background: rgba(251,113,133,.08); }
+.crystal-pill.warn    { color: var(--amber); border-color: rgba(251,191,36,.25);  background: rgba(251,191,36,.10); }
+.crystal-pill.ok      { color: var(--mint);  border-color: rgba(52,211,153,.25);  background: rgba(52,211,153,.08); }
+.crystal-pill.expired { color: var(--rose);  border-color: rgba(251,113,133,.30); background: rgba(251,113,133,.12); }
+.crystal-pill.void    { color: var(--amber); border-color: rgba(251,191,36,.25);  background: rgba(251,191,36,.08); }
+.crystal-pill.dot::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Scrollbar styling */
+.crystal-scroll::-webkit-scrollbar { width: 6px; }
+.crystal-scroll::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 6px; }
