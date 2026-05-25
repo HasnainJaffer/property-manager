@@ -180,7 +180,12 @@ export default function Sidebar({
                   undefined
 
                 return (
-                  <div key={item.id} style={{ position: 'relative', marginBottom: 2 }}>
+                  <motion.div
+                    key={item.id}
+                    style={{ position: 'relative', marginBottom: 2 }}
+                    whileHover={!isActive ? { x: 3 } : undefined}
+                    transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+                  >
 
                     {/* Sliding active background */}
                     {isActive && (
@@ -235,7 +240,7 @@ export default function Sidebar({
                         </span>
                       )}
                     </Link>
-                  </div>
+                  </motion.div>
                 )
               })}
             </div>
