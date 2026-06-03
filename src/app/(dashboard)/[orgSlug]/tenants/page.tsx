@@ -36,10 +36,8 @@ function initials(first: string, last: string): string {
 }
 
 function daysUntil(dateStr: string): number {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const end = new Date(dateStr)
-  end.setHours(0, 0, 0, 0)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const end = new Date(dateStr); end.setHours(0, 0, 0, 0)
   return Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 }
 
@@ -48,59 +46,48 @@ function currentTenancy(row: TenantRow) {
     const s = tt.tenancies?.status
     return s === 'active' || s === 'periodic' || s === 'in_notice'
   })
-  if (!active?.tenancies?.units) return null
-  return active.tenancies.units
+  return active?.tenancies?.units ?? null
 }
 
 // ─── Animations ───────────────────────────────────────────────────────────────
 
-const containerVariants = {
-  visible: { transition: { staggerChildren: 0.04 } },
-}
-const rowVariants = {
-  hidden: { opacity: 0, y: 3 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.15 } },
-}
+const stagger = { visible: { transition: { staggerChildren: 0.04 } } }
+const row     = { hidden: { opacity: 0, y: 3 }, visible: { opacity: 1, y: 0, transition: { duration: 0.15 } } }
 
 // ─── Badge components ─────────────────────────────────────────────────────────
 
-function RightToRentBadge({ row }: { row: TenantRow }) {
-  const status = row.right_to_rent_status
+function RightToRentBadge({ tenant }: { tenant: TenantRow }) {
+  const status = tenant.right_to_rent_status
   if (!status || status === 'not_applicable') {
-    return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">N/A</span>
+    return <span className="crystal-pill void" style={{ fontSize: 10.5 }}>N/A</span>
   }
   if (status === 'not_checked') {
-    return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-400">Not Checked</span>
+    return <span className="crystal-pill arrears" style={{ fontSize: 10.5 }}>Not Checked</span>
   }
   if (status === 'failed') {
-    return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-400">Failed</span>
+    return <span className="crystal-pill arrears" style={{ fontSize: 10.5 }}>Failed</span>
   }
   if (status === 'time_limited') {
-    if (row.right_to_rent_expiry) {
-      const days = daysUntil(row.right_to_rent_expiry)
-      if (days < 0) {
-        return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-400">Expired</span>
-      }
-      if (days <= 90) {
-        return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Expiring ({days}d)</span>
-      }
+    if (tenant.right_to_rent_expiry) {
+      const days = daysUntil(tenant.right_to_rent_expiry)
+      if (days < 0)   return <span className="crystal-pill expired" style={{ fontSize: 10.5 }}>Expired</span>
+      if (days <= 90) return <span className="crystal-pill warn" style={{ fontSize: 10.5 }}>Expiring ({days}d)</span>
     }
-    return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Time Limited</span>
+    return <span className="crystal-pill warn" style={{ fontSize: 10.5 }}>Time Limited</span>
   }
-  // unlimited
-  return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">UK / Settled</span>
+  return <span className="crystal-pill healthy" style={{ fontSize: 10.5 }}>UK / Settled</span>
 }
 
 function ActiveBadge({ isActive }: { isActive: boolean }) {
   return isActive
-    ? <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Active</span>
-    : <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Inactive</span>
+    ? <span className="crystal-pill healthy dot" style={{ fontSize: 10.5 }}>Active</span>
+    : <span className="crystal-pill void" style={{ fontSize: 10.5 }}>Inactive</span>
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TenantsPage() {
-  const params = useParams()
+  const params  = useParams()
   const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
 
   const [tenants, setTenants] = useState<TenantRow[]>([])
@@ -127,10 +114,7 @@ export default function TenantsPage() {
         tenancy_tenants (
           tenancies (
             status,
-            units (
-              unit_ref,
-              properties ( name )
-            )
+            units ( unit_ref, properties ( name ) )
           )
         )
       `)
@@ -144,92 +128,126 @@ export default function TenantsPage() {
   useEffect(() => { load() }, [load])
 
   const activeCount = tenants.filter(t => t.is_active).length
-  const subtitle = loading
+  const subtitle    = loading
     ? 'Loading…'
     : `${tenants.length} tenant${tenants.length !== 1 ? 's' : ''} · ${activeCount} active`
+
+  // ── Shared styles ─────────────────────────────────────────────────────────
+
+  const thStyle: React.CSSProperties = {
+    padding: '0 12px 10px',
+    fontSize: 10,
+    fontWeight: 500,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: 'var(--text-mute)',
+    textAlign: 'left',
+    whiteSpace: 'nowrap',
+  }
+
+  const tdBase: React.CSSProperties = {
+    padding: '11px 12px',
+    fontSize: 12,
+    borderBottom: '1px solid var(--border)',
+  }
 
   return (
     <AppShell title="Tenants" subtitle={subtitle} action={{ label: 'Add Tenant' }}>
       <PageWrapper>
-        <div className="p-6">
-          {loading ? (
-            <div className="flex items-center justify-center min-h-[300px]">
-              <p className="text-[12px] text-gray-400">Loading tenants…</p>
+
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
+            <p style={{ fontSize: 12, color: 'var(--text-mute)' }}>Loading tenants…</p>
+          </div>
+        ) : tenants.length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>No tenants</p>
+              <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>Add a tenancy to create tenant records.</p>
             </div>
-          ) : tenants.length === 0 ? (
-            <div className="flex items-center justify-center min-h-[300px]">
-              <div className="text-center">
-                <p className="text-[13px] font-medium text-gray-900 dark:text-gray-100 mb-1">No tenants</p>
-                <p className="text-[12px] text-gray-500 dark:text-gray-400">Add a tenancy to create tenant records.</p>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Name</th>
-                    <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Email</th>
-                    <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Current Tenancy</th>
-                    <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Right to Rent</th>
-                    <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Status</th>
-                  </tr>
-                </thead>
-                <motion.tbody variants={containerVariants} initial="hidden" animate="visible">
-                  {tenants.map((tenant, i) => {
-                    const tenancy = currentTenancy(tenant)
-                    return (
-                      <motion.tr
-                        key={tenant.id}
-                        variants={rowVariants}
-                        className={`hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors ${
-                          i < tenants.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''
-                        }`}
-                      >
-                        {/* Avatar + name */}
-                        <td className="py-2.5 px-4">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
-                              <span className="text-[10px] font-medium text-blue-700 dark:text-blue-300">
-                                {initials(tenant.first_name, tenant.last_name)}
-                              </span>
-                            </div>
-                            <span className="text-[12px] font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                              {tenant.first_name} {tenant.last_name}
+          </div>
+        ) : (
+          <div style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 14,
+            overflow: 'hidden',
+            backdropFilter: 'blur(18px)',
+            WebkitBackdropFilter: 'blur(18px)',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 24px -8px rgba(0,0,0,0.28)',
+          }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Email</th>
+                  <th style={thStyle}>Current Tenancy</th>
+                  <th style={thStyle}>Right to Rent</th>
+                  <th style={thStyle}>Status</th>
+                </tr>
+              </thead>
+              <motion.tbody variants={stagger} initial="hidden" animate="visible">
+                {tenants.map((tenant, i) => {
+                  const tenancy = currentTenancy(tenant)
+                  return (
+                    <motion.tr
+                      key={tenant.id}
+                      variants={row}
+                      className="crystal-table-row"
+                      style={{ borderBottom: i < tenants.length - 1 ? '1px solid var(--border)' : 'none' }}
+                    >
+                      {/* Avatar + name */}
+                      <td style={{ ...tdBase }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{
+                            width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                            background: 'linear-gradient(135deg, var(--indigo), var(--cyan))',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 2px 8px var(--glow-i)',
+                          }}>
+                            <span style={{ fontSize: 10.5, fontWeight: 600, color: '#fff' }}>
+                              {initials(tenant.first_name, tenant.last_name)}
                             </span>
                           </div>
-                        </td>
-                        <td className="py-2.5 px-4 text-[12px] text-gray-500 dark:text-gray-400">
-                          {tenant.email ?? '—'}
-                        </td>
-                        <td className="py-2.5 px-4">
-                          {tenancy ? (
-                            <>
-                              <p className="text-[12px] text-gray-700 dark:text-gray-300">
-                                {tenancy.properties?.name ?? '—'}
-                              </p>
-                              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-                                {tenancy.unit_ref}
-                              </p>
-                            </>
-                          ) : (
-                            <span className="text-[11px] text-gray-400 dark:text-gray-500">No active tenancy</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <RightToRentBadge row={tenant} />
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <ActiveBadge isActive={tenant.is_active} />
-                        </td>
-                      </motion.tr>
-                    )
-                  })}
-                </motion.tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                          <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+                            {tenant.first_name} {tenant.last_name}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td style={{ ...tdBase, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+                        {tenant.email ?? '—'}
+                      </td>
+
+                      <td style={{ ...tdBase }}>
+                        {tenancy ? (
+                          <>
+                            <p style={{ margin: 0, fontSize: 12, color: 'var(--text)' }}>
+                              {tenancy.properties?.name ?? '—'}
+                            </p>
+                            <p style={{ margin: '2px 0 0', fontSize: 10.5, color: 'var(--text-mute)' }}>
+                              {tenancy.unit_ref}
+                            </p>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 11, color: 'var(--text-mute)' }}>No active tenancy</span>
+                        )}
+                      </td>
+
+                      <td style={{ ...tdBase }}>
+                        <RightToRentBadge tenant={tenant} />
+                      </td>
+
+                      <td style={{ ...tdBase }}>
+                        <ActiveBadge isActive={tenant.is_active} />
+                      </td>
+                    </motion.tr>
+                  )
+                })}
+              </motion.tbody>
+            </table>
+          </div>
+        )}
       </PageWrapper>
     </AppShell>
   )

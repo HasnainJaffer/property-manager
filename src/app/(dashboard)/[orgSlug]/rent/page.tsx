@@ -10,31 +10,34 @@ import { createClient } from '@/lib/supabase/client'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface MonthSummary {
+  year:      number
+  month:     number
+  totalDue:  number
+  collected: number
+  shortLabel: string
+}
+
 interface ChargeRow {
-  id: string
+  id:          string
   charge_type: string
   description: string | null
-  due_date: string
-  amount: number
+  due_date:    string
+  amount:      number
   paid_amount: number
-  status: string
+  status:      string
   tenancies: {
     id: string
     tenancy_tenants: Array<{
       is_lead: boolean
       tenants: { first_name: string; last_name: string } | null
     }>
-    units: {
-      unit_ref: string
-      properties: { name: string } | null
-    } | null
+    units: { unit_ref: string; properties: { name: string } | null } | null
   } | null
 }
 
 interface ActiveTenancy {
-  id: string
-  lead_name: string
-  property_unit: string
+  id: string; lead_name: string; property_unit: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -55,8 +58,7 @@ function monthLabel(year: number, month: number): string {
 function leadTenantName(charge: ChargeRow): string {
   if (!charge.tenancies) return '—'
   const lead = charge.tenancies.tenancy_tenants.find(t => t.is_lead) ?? charge.tenancies.tenancy_tenants[0]
-  if (!lead?.tenants) return '—'
-  return `${lead.tenants.first_name} ${lead.tenants.last_name}`
+  return lead?.tenants ? `${lead.tenants.first_name} ${lead.tenants.last_name}` : '—'
 }
 
 function propertyUnit(charge: ChargeRow): string {
@@ -65,61 +67,246 @@ function propertyUnit(charge: ChargeRow): string {
   return properties ? `${properties.name} · ${unit_ref}` : unit_ref
 }
 
+function buildMonthSummaries(rows: { due_date: string; amount: number; paid_amount: number }[]): MonthSummary[] {
+  const now = new Date()
+  const map = new Map<string, MonthSummary>()
+
+  for (let i = 11; i >= 0; i--) {
+    const d   = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    map.set(key, {
+      year:       d.getFullYear(),
+      month:      d.getMonth() + 1,
+      totalDue:   0,
+      collected:  0,
+      shortLabel: d.toLocaleString('en-GB', { month: 'short' }),
+    })
+  }
+
+  for (const row of rows) {
+    const key     = row.due_date.slice(0, 7)
+    const summary = map.get(key)
+    if (summary) {
+      summary.totalDue  += row.amount
+      summary.collected += row.paid_amount
+    }
+  }
+
+  return Array.from(map.values())
+}
+
 // ─── Animations ───────────────────────────────────────────────────────────────
 
-const containerVariants = {
-  visible: { transition: { staggerChildren: 0.04 } },
-}
-const rowVariants = {
-  hidden: { opacity: 0, y: 3 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.15 } },
-}
+const stagger = { visible: { transition: { staggerChildren: 0.04 } } }
+const rowAnim = { hidden: { opacity: 0, y: 3 }, visible: { opacity: 1, y: 0, transition: { duration: 0.15 } } }
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === 'paid') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>
-  )
-  if (status === 'partial') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>
-  )
-  if (status === 'overdue') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-400">Overdue</span>
-  )
-  if (status === 'waived') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Waived</span>
-  )
-  if (status === 'cancelled') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Cancelled</span>
-  )
+  if (status === 'paid')      return <span className="crystal-pill healthy"  style={{ fontSize: 10.5 }}>Paid</span>
+  if (status === 'partial')   return <span className="crystal-pill warn"     style={{ fontSize: 10.5 }}>Partial</span>
+  if (status === 'overdue')   return <span className="crystal-pill arrears"  style={{ fontSize: 10.5 }}>Overdue</span>
+  if (status === 'waived')    return <span className="crystal-pill void"     style={{ fontSize: 10.5 }}>Waived</span>
+  if (status === 'cancelled') return <span className="crystal-pill void"     style={{ fontSize: 10.5 }}>Cancelled</span>
+  return                             <span className="crystal-pill"          style={{ fontSize: 10.5 }}>Pending</span>
+}
+
+// ─── Bar chart ────────────────────────────────────────────────────────────────
+
+function RentChart({
+  summaries,
+  selectedYear,
+  selectedMonth,
+  onSelect,
+}: {
+  summaries: MonthSummary[]
+  selectedYear: number
+  selectedMonth: number
+  onSelect: (year: number, month: number, offset: number) => void
+}) {
+  const [hovered, setHovered] = useState<number | null>(null)
+
+  const maxTotal = Math.max(...summaries.map(s => s.totalDue), 1)
+  const BAR_H    = 72 // px
+
   return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Pending</span>
+    <div style={{
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
+      borderRadius: 14,
+      backdropFilter: 'blur(18px)',
+      WebkitBackdropFilter: 'blur(18px)',
+      boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 24px -8px rgba(0,0,0,0.28)',
+      padding: '16px 20px 14px',
+      marginBottom: 16,
+    }}>
+      <p style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-mute)', marginBottom: 14 }}>
+        12-Month Overview
+      </p>
+
+      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: BAR_H + 28 }}>
+        {summaries.map((s, i) => {
+          const isSelected = s.year === selectedYear && s.month === selectedMonth
+          const isHovered  = hovered === i
+          const dueH  = s.totalDue  > 0 ? Math.max((s.totalDue  / maxTotal) * BAR_H, 4) : 2
+          const collH = s.totalDue  > 0 ? (s.collected / s.totalDue) * dueH             : 0
+          const offset = i - 11
+
+          return (
+            <div
+              key={i}
+              onClick={() => onSelect(s.year, s.month, offset)}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer',
+                position: 'relative',
+              }}
+            >
+              {/* Tooltip */}
+              <AnimatePresence>
+                {isHovered && s.totalDue > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.12 }}
+                    style={{
+                      position: 'absolute',
+                      bottom: BAR_H + 14,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'var(--surface-3)',
+                      border: '1px solid var(--border-2)',
+                      borderRadius: 8,
+                      padding: '7px 10px',
+                      whiteSpace: 'nowrap',
+                      zIndex: 10,
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <p style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
+                      {monthLabel(s.year, s.month)}
+                    </p>
+                    <p style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 2 }}>
+                      Due&nbsp;&nbsp;&nbsp;&nbsp;{fmtGBP(s.totalDue)}
+                    </p>
+                    <p style={{ fontSize: 10, color: 'var(--mint)', marginBottom: 2 }}>
+                      Paid&nbsp;&nbsp;&nbsp;&nbsp;{fmtGBP(s.collected)}
+                    </p>
+                    {s.totalDue - s.collected > 0 && (
+                      <p style={{ fontSize: 10, color: 'var(--rose)' }}>
+                        Owed&nbsp;&nbsp;&nbsp;{fmtGBP(s.totalDue - s.collected)}
+                      </p>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Bar area */}
+              <div style={{
+                width: '100%',
+                height: BAR_H,
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
+              }}>
+                {/* Due bar (background) + collected overlay */}
+                <div style={{
+                  width: '100%',
+                  height: dueH,
+                  background: isSelected ? 'var(--surface-3)' : isHovered ? 'var(--surface-3)' : 'var(--surface-2)',
+                  borderRadius: '4px 4px 0 0',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  border: isSelected ? '1px solid var(--indigo)' : '1px solid transparent',
+                  boxSizing: 'border-box',
+                  transition: 'background .15s, border-color .15s',
+                }}>
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: collH }}
+                    transition={{ duration: 0.6, delay: i * 0.03, ease: 'easeOut' }}
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      background: 'linear-gradient(180deg, var(--mint), var(--cyan))',
+                      borderRadius: '3px 3px 0 0',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Month label */}
+              <span style={{
+                fontSize: 9.5,
+                color: isSelected ? 'var(--indigo)' : 'var(--text-mute)',
+                fontWeight: isSelected ? 600 : 400,
+                letterSpacing: '0.02em',
+                userSelect: 'none',
+                transition: 'color .15s',
+              }}>
+                {s.shortLabel}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─── KPI card ─────────────────────────────────────────────────────────────────
+
+function KpiCard({ label, value, sub, color }: {
+  label: string; value: string; sub?: string; color?: string
+}) {
+  return (
+    <div style={{
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
+      borderRadius: 14,
+      backdropFilter: 'blur(18px)',
+      WebkitBackdropFilter: 'blur(18px)',
+      boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset',
+      padding: '16px 20px',
+    }}>
+      <p style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-mute)', marginBottom: 8 }}>
+        {label}
+      </p>
+      <p style={{ fontSize: 22, fontWeight: 600, fontFamily: 'var(--font-mono)', color: color ?? 'var(--text)', lineHeight: 1.1 }}>
+        {value}
+      </p>
+      {sub && <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 5 }}>{sub}</p>}
+    </div>
   )
 }
 
 // ─── Record Payment Modal ─────────────────────────────────────────────────────
 
-function RecordPaymentModal({
-  orgId,
-  tenancies,
-  onClose,
-  onRecorded,
-}: {
+function RecordPaymentModal({ orgId, tenancies, onClose, onRecorded }: {
   orgId: string
   tenancies: ActiveTenancy[]
   onClose: () => void
   onRecorded: () => void
 }) {
   const [form, setForm] = useState({
-    tenancy_id: tenancies[0]?.id ?? '',
-    amount: '',
-    payment_date: new Date().toISOString().slice(0, 10),
+    tenancy_id:     tenancies[0]?.id ?? '',
+    amount:         '',
+    payment_date:   new Date().toISOString().slice(0, 10),
     payment_method: 'bank_transfer',
-    reference: '',
+    reference:      '',
   })
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [error, setError]   = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   function set(k: keyof typeof form, v: string) {
     setForm(f => ({ ...f, [k]: v }))
@@ -128,21 +315,16 @@ function RecordPaymentModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.tenancy_id || !form.amount) return
-    setLoading(true)
-    setError(null)
+    setSaving(true); setError(null)
 
     const supabase = createClient()
-    const amount = parseFloat(form.amount)
+    const amount   = parseFloat(form.amount)
 
-    // Insert payment (org_id synced via trigger)
     const { data: payment, error: payErr } = await supabase
       .from('payments')
       .insert({
-        org_id: orgId,
-        tenancy_id: form.tenancy_id,
-        amount,
-        payment_date: form.payment_date,
-        payment_method: form.payment_method,
+        org_id: orgId, tenancy_id: form.tenancy_id, amount,
+        payment_date: form.payment_date, payment_method: form.payment_method,
         reference: form.reference.trim() || null,
       })
       .select('id')
@@ -150,8 +332,7 @@ function RecordPaymentModal({
 
     if (payErr || !payment) {
       setError(payErr?.message ?? 'Failed to record payment')
-      setLoading(false)
-      return
+      setSaving(false); return
     }
 
     // Auto-allocate to oldest outstanding charges
@@ -166,12 +347,10 @@ function RecordPaymentModal({
       let remaining = amount
       for (const charge of outstanding) {
         if (remaining <= 0) break
-        const balance = charge.amount - charge.paid_amount
+        const balance  = charge.amount - charge.paid_amount
         const allocate = Math.min(remaining, balance)
         await supabase.from('payment_allocations').insert({
-          payment_id: payment.id,
-          charge_id: charge.id,
-          amount_allocated: allocate,
+          payment_id: payment.id, charge_id: charge.id, amount_allocated: allocate,
         })
         remaining -= allocate
       }
@@ -180,87 +359,68 @@ function RecordPaymentModal({
     onRecorded()
   }
 
-  const inputClass =
-    'w-full px-3 py-2 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[13px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none focus:border-gray-400 dark:focus:border-gray-500 transition-colors'
-  const labelClass = 'block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1.5'
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+        className="crystal-modal-overlay"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         onClick={onClose}
       />
       <motion.div
-        initial={{ opacity: 0, scale: 0.97, y: 8 }}
+        className="crystal-modal crystal-scroll"
+        initial={{ opacity: 0, scale: 0.97, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97 }}
-        transition={{ duration: 0.15 }}
-        className="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl"
+        transition={{ duration: 0.16 }}
+        style={{ position: 'relative', width: '100%', maxWidth: 420, maxHeight: '90vh', overflowY: 'auto' }}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
-          <h2 className="text-[14px] font-medium text-gray-900 dark:text-gray-100">Record payment</h2>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px', borderBottom: '1px solid var(--border)',
+          position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 1,
+        }}>
+          <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Record payment</h2>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            style={{
+              width: 28, height: 28, borderRadius: 7, border: 'none', background: 'transparent',
+              color: 'var(--text-mute)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s, background .15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--surface-2)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-mute)'; e.currentTarget.style.background = 'transparent' }}
           >
             <IconX size={15} strokeWidth={1.75} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-3">
-          <div>
-            <label className={labelClass}>Tenancy <span className="text-red-500">*</span></label>
-            <select
-              required
-              value={form.tenancy_id}
-              onChange={e => set('tenancy_id', e.target.value)}
-              className={inputClass}
-            >
-              {tenancies.map(t => (
-                <option key={t.id} value={t.id}>{t.lead_name} — {t.property_unit}</option>
-              ))}
+        <form onSubmit={handleSubmit} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Tenancy */}
+          <ModalField label="Tenancy" required>
+            <select required className="crystal-select" value={form.tenancy_id} onChange={e => set('tenancy_id', e.target.value)}>
+              {tenancies.map(t => <option key={t.id} value={t.id}>{t.lead_name} — {t.property_unit}</option>)}
             </select>
-          </div>
+          </ModalField>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className={labelClass}>Amount <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-gray-400">£</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <ModalField label="Amount" required>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-mute)', pointerEvents: 'none' }}>£</span>
                 <input
-                  required
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={form.amount}
-                  onChange={e => set('amount', e.target.value)}
-                  placeholder="950.00"
-                  className={`${inputClass} pl-5`}
+                  required type="number" min="0.01" step="0.01"
+                  className="crystal-input" style={{ paddingLeft: 22 }}
+                  value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="950.00"
                 />
               </div>
-            </div>
-            <div>
-              <label className={labelClass}>Date <span className="text-red-500">*</span></label>
-              <input
-                required
-                type="date"
-                value={form.payment_date}
-                onChange={e => set('payment_date', e.target.value)}
-                className={inputClass}
-              />
-            </div>
+            </ModalField>
+            <ModalField label="Date" required>
+              <input required type="date" className="crystal-input" value={form.payment_date} onChange={e => set('payment_date', e.target.value)} />
+            </ModalField>
           </div>
 
-          <div>
-            <label className={labelClass}>Method</label>
-            <select
-              value={form.payment_method}
-              onChange={e => set('payment_method', e.target.value)}
-              className={inputClass}
-            >
+          <ModalField label="Method">
+            <select className="crystal-select" value={form.payment_method} onChange={e => set('payment_method', e.target.value)}>
               <option value="bank_transfer">Bank Transfer</option>
               <option value="standing_order">Standing Order</option>
               <option value="direct_debit">Direct Debit</option>
@@ -269,38 +429,32 @@ function RecordPaymentModal({
               <option value="card">Card</option>
               <option value="other">Other</option>
             </select>
-          </div>
+          </ModalField>
 
-          <div>
-            <label className={labelClass}>Reference</label>
-            <input
-              value={form.reference}
-              onChange={e => set('reference', e.target.value)}
-              placeholder="e.g. MITCHELL MAY"
-              className={inputClass}
-            />
-          </div>
+          <ModalField label="Reference">
+            <input className="crystal-input" value={form.reference} onChange={e => set('reference', e.target.value)} placeholder="e.g. MITCHELL MAY" />
+          </ModalField>
 
           {error && (
-            <p className="text-[11px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-3 py-2">
+            <p style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, background: 'rgba(251,113,133,0.08)', border: '1px solid rgba(251,113,133,0.25)', color: 'var(--rose)' }}>
               {error}
             </p>
           )}
 
-          <div className="flex items-center justify-end gap-2 pt-1">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
             <button
-              type="button"
-              onClick={onClose}
-              className="px-3 py-1.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+              type="button" onClick={onClose}
+              style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, background: 'var(--surface-2)', border: '1px solid var(--border-2)', color: 'var(--text-dim)', cursor: 'pointer', transition: 'color .15s' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-dim)'}
             >
               Cancel
             </button>
             <button
-              type="submit"
-              disabled={loading}
-              className="px-3 py-1.5 rounded bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[13px] font-medium hover:bg-gray-700 dark:hover:bg-gray-100 transition-colors disabled:opacity-50"
+              type="submit" disabled={saving}
+              style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500, background: 'linear-gradient(180deg, var(--indigo), var(--indigo-2))', boxShadow: '0 4px 14px var(--glow-i)', color: '#fff', border: 'none', cursor: 'pointer', opacity: saving ? 0.6 : 1, transition: 'opacity .15s' }}
             >
-              {loading ? 'Recording…' : 'Record payment'}
+              {saving ? 'Recording…' : 'Record payment'}
             </button>
           </div>
         </form>
@@ -309,26 +463,13 @@ function RecordPaymentModal({
   )
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
-
-function KpiCard({
-  label,
-  value,
-  sub,
-  valueColor,
-}: {
-  label: string
-  value: string
-  sub?: string
-  valueColor?: string
-}) {
+function ModalField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
-      <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">{label}</p>
-      <p className={`text-[22px] font-medium font-mono leading-none ${valueColor ?? 'text-gray-900 dark:text-gray-100'}`}>
-        {value}
-      </p>
-      {sub && <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">{sub}</p>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <label style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--text-dim)' }}>
+        {label}{required && <span style={{ color: 'var(--rose)', marginLeft: 3 }}>*</span>}
+      </label>
+      {children}
     </div>
   )
 }
@@ -336,22 +477,24 @@ function KpiCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function RentPage() {
-  const params = useParams()
+  const params  = useParams()
   const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
 
   const now = new Date()
-  const [monthOffset, setMonthOffset] = useState(0)
-  const [orgId, setOrgId] = useState<string | null>(null)
-  const [charges, setCharges] = useState<ChargeRow[]>([])
+  const [monthOffset, setMonthOffset]       = useState(0)
+  const [orgId, setOrgId]                   = useState<string | null>(null)
+  const [charges, setCharges]               = useState<ChargeRow[]>([])
+  const [monthSummaries, setMonthSummaries] = useState<MonthSummary[]>([])
   const [activeTenancies, setActiveTenancies] = useState<ActiveTenancy[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
+  const [loading, setLoading]               = useState(true)
+  const [showModal, setShowModal]           = useState(false)
 
-  const year  = now.getFullYear() + Math.floor((now.getMonth() + monthOffset) / 12)
-  const month = ((now.getMonth() + monthOffset) % 12 + 12) % 12 + 1
+  // Compute selected year/month from offset
+  const targetDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1)
+  const year  = targetDate.getFullYear()
+  const month = targetDate.getMonth() + 1
   const firstDay = `${year}-${String(month).padStart(2, '0')}-01`
-  const lastDayDate = new Date(year, month, 0)
-  const lastDay  = `${year}-${String(month).padStart(2, '0')}-${String(lastDayDate.getDate()).padStart(2, '0')}`
+  const lastDay  = `${year}-${String(month).padStart(2, '0')}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`
 
   const load = useCallback(async () => {
     if (!orgSlug) return
@@ -367,51 +510,51 @@ export default function RentPage() {
     if (!org) { setLoading(false); return }
     setOrgId(org.id)
 
-    // Fetch charges for the selected month
-    const { data } = await supabase
-      .from('charges')
-      .select(`
-        id, charge_type, description, due_date, amount, paid_amount, status,
-        tenancies (
-          id,
-          tenancy_tenants (
-            is_lead,
-            tenants ( first_name, last_name )
-          ),
-          units (
-            unit_ref,
-            properties ( name )
+    // Summary date range: first day of 11 months ago → last day of current month
+    const summaryStart = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().split('T')[0]
+    const summaryEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+
+    const [detailRes, summaryRes, tenanciesRes] = await Promise.all([
+      supabase
+        .from('charges')
+        .select(`
+          id, charge_type, description, due_date, amount, paid_amount, status,
+          tenancies (
+            id,
+            tenancy_tenants ( is_lead, tenants ( first_name, last_name ) ),
+            units ( unit_ref, properties ( name ) )
           )
-        )
-      `)
-      .eq('org_id', org.id)
-      .gte('due_date', firstDay)
-      .lte('due_date', lastDay)
-      .order('due_date', { ascending: true })
+        `)
+        .eq('org_id', org.id)
+        .gte('due_date', firstDay)
+        .lte('due_date', lastDay)
+        .order('due_date', { ascending: true }),
 
-    setCharges((data as unknown as ChargeRow[]) ?? [])
+      supabase
+        .from('charges')
+        .select('due_date, amount, paid_amount')
+        .eq('org_id', org.id)
+        .gte('due_date', summaryStart)
+        .lte('due_date', summaryEnd)
+        .neq('status', 'waived'),
 
-    // Fetch active tenancies for the payment modal
-    const { data: tData } = await supabase
-      .from('tenancies')
-      .select(`
-        id,
-        tenancy_tenants (
-          is_lead,
-          tenants ( first_name, last_name )
-        ),
-        units (
-          unit_ref,
-          properties ( name )
-        )
-      `)
-      .eq('org_id', org.id)
-      .in('status', ['active', 'periodic', 'in_notice'])
+      supabase
+        .from('tenancies')
+        .select(`
+          id,
+          tenancy_tenants ( is_lead, tenants ( first_name, last_name ) ),
+          units ( unit_ref, properties ( name ) )
+        `)
+        .eq('org_id', org.id)
+        .in('status', ['active', 'periodic', 'in_notice']),
+    ])
 
-    if (tData) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setCharges((detailRes.data as unknown as ChargeRow[]) ?? [])
+    setMonthSummaries(buildMonthSummaries(summaryRes.data ?? []))
+
+    if (tenanciesRes.data) {
       setActiveTenancies(
-        (tData as unknown as Array<{
+        (tenanciesRes.data as unknown as Array<{
           id: string
           tenancy_tenants: Array<{ is_lead: boolean; tenants: { first_name: string; last_name: string } | null }>
           units: { unit_ref: string; properties: { name: string } | null } | null
@@ -425,50 +568,84 @@ export default function RentPage() {
     }
 
     setLoading(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgSlug, firstDay, lastDay])
 
   useEffect(() => { load() }, [load])
 
-  const totalDue      = charges.reduce((s, c) => s + c.amount, 0)
-  const collected     = charges.reduce((s, c) => s + c.paid_amount, 0)
-  const outstanding   = totalDue - collected
-  const overdueCount  = charges.filter(c => c.status === 'overdue' || c.status === 'partial').length
+  const totalDue     = charges.reduce((s, c) => s + c.amount, 0)
+  const collected    = charges.reduce((s, c) => s + c.paid_amount, 0)
+  const outstanding  = totalDue - collected
+  const overdueCount = charges.filter(c => c.status === 'overdue' || c.status === 'partial').length
 
   const subtitle = loading
     ? 'Loading…'
     : `${monthLabel(year, month)} · ${fmtGBP(collected)} collected of ${fmtGBP(totalDue)}`
 
+  const thStyle: React.CSSProperties = {
+    padding: '0 12px 10px',
+    fontSize: 10, fontWeight: 500, letterSpacing: '0.1em',
+    textTransform: 'uppercase', color: 'var(--text-mute)', whiteSpace: 'nowrap',
+  }
+  const tdBase: React.CSSProperties = {
+    padding: '11px 12px', fontSize: 12, borderBottom: '1px solid var(--border)',
+  }
+
   return (
     <>
-      <AppShell
-        title="Rent Ledger"
-        subtitle={subtitle}
-        action={{ label: 'Record Payment', onClick: () => setShowModal(true) }}
-      >
+      <AppShell title="Rent Ledger" subtitle={subtitle} action={{ label: 'Record Payment', onClick: () => setShowModal(true) }}>
         <PageWrapper>
-          <div className="p-6 space-y-5">
-            {/* Month navigation */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setMonthOffset(o => o - 1)}
-                className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-              >
-                <IconChevronLeft size={14} strokeWidth={2} />
-              </button>
-              <span className="text-[13px] font-medium text-gray-900 dark:text-gray-100 min-w-[120px] text-center">
-                {monthLabel(year, month)}
-              </span>
-              <button
-                onClick={() => setMonthOffset(o => o + 1)}
-                disabled={monthOffset >= 0}
-                className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 transition-colors disabled:opacity-30"
-              >
-                <IconChevronRight size={14} strokeWidth={2} />
-              </button>
-            </div>
 
-            {/* KPI cards */}
-            <div className="grid grid-cols-3 gap-3">
+          {/* ── Bar chart ───────────────────────────────────────────────── */}
+          {monthSummaries.length > 0 && (
+            <RentChart
+              summaries={monthSummaries}
+              selectedYear={year}
+              selectedMonth={month}
+              onSelect={(y, m, offset) => setMonthOffset(offset)}
+            />
+          )}
+
+          {/* ── Month navigation + KPI cards ─────────────────────────── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            {/* Prev */}
+            <button
+              onClick={() => setMonthOffset(o => o - 1)}
+              style={{
+                width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'var(--surface)', border: '1px solid var(--border)',
+                color: 'var(--text-dim)', cursor: 'pointer', transition: 'color .15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-dim)'}
+            >
+              <IconChevronLeft size={14} strokeWidth={2} />
+            </button>
+
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', minWidth: 120, textAlign: 'center' }}>
+              {monthLabel(year, month)}
+            </span>
+
+            {/* Next */}
+            <button
+              onClick={() => setMonthOffset(o => o + 1)}
+              disabled={monthOffset >= 0}
+              style={{
+                width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'var(--surface)', border: '1px solid var(--border)',
+                color: 'var(--text-dim)', cursor: monthOffset >= 0 ? 'not-allowed' : 'pointer',
+                opacity: monthOffset >= 0 ? 0.3 : 1, transition: 'color .15s, opacity .15s',
+              }}
+              onMouseEnter={e => { if (monthOffset < 0) e.currentTarget.style.color = 'var(--text)' }}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-dim)'}
+            >
+              <IconChevronRight size={14} strokeWidth={2} />
+            </button>
+
+            {/* KPI cards inline */}
+            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginLeft: 8 }}>
               <KpiCard
                 label="Total Due"
                 value={fmtGBP(totalDue)}
@@ -478,84 +655,89 @@ export default function RentPage() {
                 label="Collected"
                 value={fmtGBP(collected)}
                 sub={totalDue > 0 ? `${Math.round((collected / totalDue) * 100)}% of total` : undefined}
-                valueColor="text-emerald-700 dark:text-emerald-400"
+                color="var(--mint)"
               />
               <KpiCard
                 label="Outstanding"
                 value={fmtGBP(outstanding)}
                 sub={overdueCount > 0 ? `${overdueCount} overdue` : 'No overdue charges'}
-                valueColor={outstanding > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}
+                color={outstanding > 0 ? 'var(--rose)' : 'var(--text)'}
               />
             </div>
-
-            {/* Charges table */}
-            {loading ? (
-              <div className="flex items-center justify-center min-h-[200px]">
-                <p className="text-[12px] text-gray-400">Loading charges…</p>
-              </div>
-            ) : charges.length === 0 ? (
-              <div className="flex items-center justify-center min-h-[200px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-                <div className="text-center">
-                  <p className="text-[13px] font-medium text-gray-900 dark:text-gray-100 mb-1">No charges</p>
-                  <p className="text-[12px] text-gray-500 dark:text-gray-400">No charges recorded for {monthLabel(year, month)}.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Tenant</th>
-                      <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Property</th>
-                      <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Due</th>
-                      <th className="text-right text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Amount</th>
-                      <th className="text-right text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Paid</th>
-                      <th className="text-right text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Balance</th>
-                      <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Status</th>
-                    </tr>
-                  </thead>
-                  <motion.tbody variants={containerVariants} initial="hidden" animate="visible">
-                    {charges.map((c, i) => {
-                      const balance = c.amount - c.paid_amount
-                      return (
-                        <motion.tr
-                          key={c.id}
-                          variants={rowVariants}
-                          className={`hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors ${
-                            i < charges.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''
-                          }`}
-                        >
-                          <td className="py-2.5 px-4 text-[12px] font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                            {leadTenantName(c)}
-                          </td>
-                          <td className="py-2.5 px-4 text-[12px] text-gray-600 dark:text-gray-400">
-                            {propertyUnit(c)}
-                          </td>
-                          <td className="py-2.5 px-4 text-[11px] font-mono text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                            {fmtDate(c.due_date)}
-                          </td>
-                          <td className="py-2.5 px-4 text-[12px] font-mono text-gray-700 dark:text-gray-300 text-right whitespace-nowrap">
-                            {fmtGBP(c.amount)}
-                          </td>
-                          <td className="py-2.5 px-4 text-[12px] font-mono text-emerald-700 dark:text-emerald-400 text-right whitespace-nowrap">
-                            {c.paid_amount > 0 ? fmtGBP(c.paid_amount) : '—'}
-                          </td>
-                          <td className={`py-2.5 px-4 text-[12px] font-mono text-right whitespace-nowrap ${
-                            balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-gray-600'
-                          }`}>
-                            {balance > 0 ? fmtGBP(balance) : '—'}
-                          </td>
-                          <td className="py-2.5 px-4">
-                            <StatusBadge status={c.status} />
-                          </td>
-                        </motion.tr>
-                      )
-                    })}
-                  </motion.tbody>
-                </table>
-              </div>
-            )}
           </div>
+
+          {/* ── Charges table ────────────────────────────────────────── */}
+          {loading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
+              <p style={{ fontSize: 12, color: 'var(--text-mute)' }}>Loading charges…</p>
+            </div>
+          ) : charges.length === 0 ? (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 180,
+              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14,
+              backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>No charges</p>
+                <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>No charges recorded for {monthLabel(year, month)}.</p>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14,
+              overflow: 'hidden', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 24px -8px rgba(0,0,0,0.28)',
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ ...thStyle, textAlign: 'left' }}>Tenant</th>
+                    <th style={{ ...thStyle, textAlign: 'left' }}>Property</th>
+                    <th style={{ ...thStyle, textAlign: 'left' }}>Due</th>
+                    <th style={{ ...thStyle, textAlign: 'right' }}>Amount</th>
+                    <th style={{ ...thStyle, textAlign: 'right' }}>Paid</th>
+                    <th style={{ ...thStyle, textAlign: 'right' }}>Balance</th>
+                    <th style={{ ...thStyle, textAlign: 'left' }}>Status</th>
+                  </tr>
+                </thead>
+                <motion.tbody variants={stagger} initial="hidden" animate="visible">
+                  {charges.map((c, i) => {
+                    const balance = c.amount - c.paid_amount
+                    return (
+                      <motion.tr
+                        key={c.id}
+                        variants={rowAnim}
+                        className="crystal-table-row"
+                        style={{ borderBottom: i < charges.length - 1 ? '1px solid var(--border)' : 'none' }}
+                      >
+                        <td style={{ ...tdBase, fontWeight: 500, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+                          {leadTenantName(c)}
+                        </td>
+                        <td style={{ ...tdBase, color: 'var(--text-dim)' }}>
+                          {propertyUnit(c)}
+                        </td>
+                        <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+                          {fmtDate(c.due_date)}
+                        </td>
+                        <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', color: 'var(--text)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {fmtGBP(c.amount)}
+                        </td>
+                        <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', color: 'var(--mint)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {c.paid_amount > 0 ? fmtGBP(c.paid_amount) : <span style={{ color: 'var(--text-mute)' }}>—</span>}
+                        </td>
+                        <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', color: balance > 0 ? 'var(--rose)' : 'var(--text-mute)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {balance > 0 ? fmtGBP(balance) : '—'}
+                        </td>
+                        <td style={{ ...tdBase }}>
+                          <StatusBadge status={c.status} />
+                        </td>
+                      </motion.tr>
+                    )
+                  })}
+                </motion.tbody>
+              </table>
+            </div>
+          )}
         </PageWrapper>
       </AppShell>
 

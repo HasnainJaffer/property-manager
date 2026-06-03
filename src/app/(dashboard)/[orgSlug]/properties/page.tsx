@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { IconPlus, IconX } from '@tabler/icons-react'
+import { IconPlus, IconX, IconBuilding } from '@tabler/icons-react'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
@@ -37,10 +37,6 @@ interface PropertyType {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmtGBP(n: number) {
-  return n.toLocaleString('en-GB')
-}
-
 function fmtDate(d: string) {
   const [y, m, day] = d.split('-')
   return `${day}/${m}/${y}`
@@ -48,107 +44,123 @@ function fmtDate(d: string) {
 
 // ─── Animations ───────────────────────────────────────────────────────────────
 
-const containerVariants = {
-  visible: { transition: { staggerChildren: 0.06 } },
-}
-const cardVariants = {
-  hidden: { opacity: 0, y: 6 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.18 } },
+const grid = { visible: { transition: { staggerChildren: 0.07 } } }
+const card = {
+  hidden:  { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
 }
 
 // ─── Property Card ────────────────────────────────────────────────────────────
 
 function PropertyCard({ property }: { property: PropertyRow }) {
-  const units = property.units
-  const total = units.length
+  const units    = property.units
+  const total    = units.length
   const occupied = units.filter(u => u.status === 'occupied').length
-  const pct = total > 0 ? Math.round((occupied / total) * 100) : 0
-  const isVoid = total === 0 || occupied === 0
-  const isFull = total > 0 && occupied === total
+  const pct      = total > 0 ? Math.round((occupied / total) * 100) : 0
+  const isVoid   = total === 0 || occupied === 0
+  const isFull   = total > 0 && occupied === total
 
   const monthlyRent = units.reduce((s, u) => s + (u.target_rent ?? 0), 0)
   const netYield =
     property.current_valuation && monthlyRent > 0
-      ? (
-          ((monthlyRent * 12 - (property.mortgage_monthly ?? 0) * 12) /
-            property.current_valuation) *
-          100
-        ).toFixed(1)
+      ? (((monthlyRent * 12 - (property.mortgage_monthly ?? 0) * 12) / property.current_valuation) * 100).toFixed(1)
       : null
+
+  const fillColor = isFull
+    ? 'linear-gradient(90deg, var(--mint), var(--cyan))'
+    : isVoid
+    ? 'transparent'
+    : 'linear-gradient(90deg, var(--amber), rgba(251,191,36,0.6))'
 
   return (
     <motion.div
-      variants={cardVariants}
-      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
+      variants={card}
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 14,
+        padding: 20,
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 24px -8px rgba(0,0,0,0.28)',
+        transition: 'border-color .15s',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+      }}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-2)')}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
     >
-      {/* Name + address */}
-      <div className="mb-3">
-        <p className="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">
-          {property.name}
-        </p>
-        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+      {/* Name + address + badges */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {property.name}
+          </p>
+          <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+            {property.property_types && (
+              <span className="crystal-pill" style={{ fontSize: 10 }}>
+                {property.property_types.label}
+              </span>
+            )}
+            {isVoid ? (
+              <span className="crystal-pill void" style={{ fontSize: 10 }}>Void</span>
+            ) : isFull ? (
+              <span className="crystal-pill healthy" style={{ fontSize: 10 }}>Full</span>
+            ) : (
+              <span className="crystal-pill warn" style={{ fontSize: 10 }}>Partial</span>
+            )}
+          </div>
+        </div>
+        <p style={{ fontSize: 11.5, color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {property.address_line1}, {property.city}, {property.postcode}
         </p>
       </div>
 
-      {/* Badges */}
-      <div className="flex items-center gap-1.5 mb-3">
-        {property.property_types && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-            {property.property_types.label}
-          </span>
-        )}
-        {isVoid ? (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-            Void
-          </span>
-        ) : isFull ? (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-            Occupied
-          </span>
-        ) : (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-            Partial
-          </span>
-        )}
-      </div>
-
       {/* Occupancy bar */}
       {total > 0 && (
-        <div className="h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden mb-3">
-          <div
-            className={`h-full rounded-full ${
-              isFull ? 'bg-emerald-500' : isVoid ? 'bg-transparent' : 'bg-amber-400'
-            }`}
-            style={{ width: `${pct}%` }}
-          />
+        <div>
+          <div style={{
+            height: 4, borderRadius: 4, overflow: 'hidden',
+            background: 'var(--surface-2)',
+          }}>
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${pct}%` }}
+              transition={{ duration: 0.8, ease: 'easeOut', delay: 0.15 }}
+              style={{ height: '100%', borderRadius: 4, background: fillColor }}
+            />
+          </div>
+          <p style={{ fontSize: 10.5, color: 'var(--text-mute)', marginTop: 5 }}>
+            {occupied} of {total} unit{total !== 1 ? 's' : ''} occupied
+          </p>
         </div>
       )}
 
-      {/* Financials + purchase date */}
-      <div className="flex items-end justify-between">
+      {/* Financials */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <div>
           {monthlyRent > 0 && (
-            <p className="text-[13px] font-medium text-gray-900 dark:text-gray-100 font-mono">
-              £{fmtGBP(monthlyRent)}
-              <span className="text-[10px] text-gray-500 font-sans">/mo</span>
+            <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1.2 }}>
+              £{monthlyRent.toLocaleString('en-GB')}
+              <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-dim)', fontFamily: 'inherit' }}>/mo</span>
             </p>
           )}
           {netYield && (
-            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+            <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 3 }}>
               {netYield}% net yield
             </p>
           )}
         </div>
-        <div className="text-right">
+        <div style={{ textAlign: 'right' }}>
           {property.purchase_date && (
-            <p className="text-[10px] text-gray-400 dark:text-gray-500">
+            <p style={{ fontSize: 10.5, color: 'var(--text-mute)' }}>
               Bought {fmtDate(property.purchase_date)}
             </p>
           )}
-          {total > 0 && (
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-              {occupied}/{total} unit{total !== 1 ? 's' : ''} occupied
+          {property.current_valuation && (
+            <p style={{ fontSize: 10.5, color: 'var(--text-mute)', marginTop: 2 }}>
+              Val. £{(property.current_valuation / 1000).toFixed(0)}k
             </p>
           )}
         </div>
@@ -159,28 +171,18 @@ function PropertyCard({ property }: { property: PropertyRow }) {
 
 // ─── Add Property Modal ───────────────────────────────────────────────────────
 
-function AddPropertyModal({
-  orgId,
-  onClose,
-  onAdded,
-}: {
+function AddPropertyModal({ orgId, onClose, onAdded }: {
   orgId: string
   onClose: () => void
   onAdded: () => void
 }) {
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([])
   const [form, setForm] = useState({
-    name: '',
-    property_type_id: '',
-    address_line1: '',
-    city: '',
-    postcode: '',
-    purchase_price: '',
-    purchase_date: '',
-    mortgage_monthly: '',
+    name: '', property_type_id: '', address_line1: '',
+    city: '', postcode: '', purchase_price: '', purchase_date: '', mortgage_monthly: '',
   })
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState<string | null>(null)
+  const [saving, setSaving]   = useState(false)
 
   useEffect(() => {
     createClient()
@@ -201,209 +203,233 @@ function AddPropertyModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true)
+    setSaving(true)
     setError(null)
 
     const { error } = await createClient()
       .from('properties')
       .insert({
-        org_id: orgId,
-        property_type_id: form.property_type_id,
-        name: form.name.trim(),
-        address_line1: form.address_line1.trim(),
-        city: form.city.trim(),
-        postcode: form.postcode.trim().toUpperCase(),
-        purchase_price: form.purchase_price ? parseFloat(form.purchase_price) : null,
-        purchase_date: form.purchase_date || null,
-        mortgage_monthly: form.mortgage_monthly ? parseFloat(form.mortgage_monthly) : null,
+        org_id:            orgId,
+        property_type_id:  form.property_type_id,
+        name:              form.name.trim(),
+        address_line1:     form.address_line1.trim(),
+        city:              form.city.trim(),
+        postcode:          form.postcode.trim().toUpperCase(),
+        purchase_price:    form.purchase_price ? parseFloat(form.purchase_price) : null,
+        purchase_date:     form.purchase_date || null,
+        mortgage_monthly:  form.mortgage_monthly ? parseFloat(form.mortgage_monthly) : null,
       })
 
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
-
+    if (error) { setError(error.message); setSaving(false); return }
     onAdded()
   }
 
-  const inputClass =
-    'w-full px-3 py-2 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[13px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none focus:border-gray-400 dark:focus:border-gray-500 transition-colors'
-  const labelClass = 'block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1.5'
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <motion.div
+        className="crystal-modal-overlay"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
         onClick={onClose}
       />
+
       <motion.div
-        initial={{ opacity: 0, scale: 0.97, y: 8 }}
+        className="crystal-modal crystal-scroll"
+        initial={{ opacity: 0, scale: 0.97, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97 }}
-        transition={{ duration: 0.15 }}
-        className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto"
+        transition={{ duration: 0.16 }}
+        style={{ position: 'relative', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10">
-          <h2 className="text-[14px] font-medium text-gray-900 dark:text-gray-100">
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px', borderBottom: '1px solid var(--border)',
+          position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 1,
+        }}>
+          <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
             Add property
           </h2>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            style={{
+              width: 28, height: 28, borderRadius: 7, border: 'none', background: 'transparent',
+              color: 'var(--text-mute)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'color .15s, background .15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--surface-2)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-mute)'; e.currentTarget.style.background = 'transparent' }}
           >
             <IconX size={15} strokeWidth={1.75} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-3">
-          {/* Name */}
-          <div>
-            <label className={labelClass}>
-              Property name <span className="text-red-500">*</span>
-            </label>
+        <form onSubmit={handleSubmit} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Property name */}
+          <ModalField label="Property name" required>
             <input
               required
+              className="crystal-input"
               value={form.name}
               onChange={e => set('name', e.target.value)}
               placeholder="e.g. 24 Thornton Road"
-              className={inputClass}
             />
-          </div>
+          </ModalField>
 
-          {/* Type */}
-          <div>
-            <label className={labelClass}>
-              Property type <span className="text-red-500">*</span>
-            </label>
+          {/* Property type */}
+          <ModalField label="Property type" required>
             <select
               required
+              className="crystal-select"
               value={form.property_type_id}
               onChange={e => set('property_type_id', e.target.value)}
-              className={inputClass}
             >
-              {propertyTypes.map(t => (
-                <option key={t.id} value={t.id}>{t.label}</option>
-              ))}
+              {propertyTypes.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
             </select>
-          </div>
+          </ModalField>
 
           {/* Address */}
-          <div>
-            <label className={labelClass}>
-              Street address <span className="text-red-500">*</span>
-            </label>
+          <ModalField label="Street address" required>
             <input
               required
+              className="crystal-input"
               value={form.address_line1}
               onChange={e => set('address_line1', e.target.value)}
               placeholder="e.g. 24 Thornton Road"
-              className={inputClass}
             />
-          </div>
+          </ModalField>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className={labelClass}>
-                City <span className="text-red-500">*</span>
-              </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <ModalField label="City" required>
               <input
                 required
+                className="crystal-input"
                 value={form.city}
                 onChange={e => set('city', e.target.value)}
                 placeholder="e.g. Manchester"
-                className={inputClass}
               />
-            </div>
-            <div>
-              <label className={labelClass}>
-                Postcode <span className="text-red-500">*</span>
-              </label>
+            </ModalField>
+            <ModalField label="Postcode" required>
               <input
                 required
+                className="crystal-input"
+                style={{ textTransform: 'uppercase', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}
                 value={form.postcode}
                 onChange={e => set('postcode', e.target.value.toUpperCase())}
-                placeholder="e.g. M1 1AA"
-                className={`${inputClass} font-mono uppercase`}
+                placeholder="M1 1AA"
               />
-            </div>
+            </ModalField>
           </div>
 
-          {/* Financial section */}
-          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider pt-1">
-            Financial details (optional)
+          {/* Section divider */}
+          <p style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-mute)', paddingTop: 4 }}>
+            Financial details — optional
           </p>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className={labelClass}>Purchase price</label>
-              <div className="relative">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-gray-400">£</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            <ModalField label="Purchase price">
+              <PrefixInput prefix="£">
                 <input
-                  type="number"
-                  min="0"
-                  step="1000"
+                  type="number" min="0" step="1000"
+                  className="crystal-input"
+                  style={{ paddingLeft: 22 }}
                   value={form.purchase_price}
                   onChange={e => set('purchase_price', e.target.value)}
                   placeholder="175000"
-                  className={`${inputClass} pl-5`}
                 />
-              </div>
-            </div>
-            <div>
-              <label className={labelClass}>Purchase date</label>
+              </PrefixInput>
+            </ModalField>
+            <ModalField label="Purchase date">
               <input
                 type="date"
+                className="crystal-input"
                 value={form.purchase_date}
                 onChange={e => set('purchase_date', e.target.value)}
-                className={inputClass}
               />
-            </div>
-            <div>
-              <label className={labelClass}>Mortgage/mo</label>
-              <div className="relative">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-gray-400">£</span>
+            </ModalField>
+            <ModalField label="Mortgage/mo">
+              <PrefixInput prefix="£">
                 <input
-                  type="number"
-                  min="0"
-                  step="10"
+                  type="number" min="0" step="10"
+                  className="crystal-input"
+                  style={{ paddingLeft: 22 }}
                   value={form.mortgage_monthly}
                   onChange={e => set('mortgage_monthly', e.target.value)}
                   placeholder="620"
-                  className={`${inputClass} pl-5`}
                 />
-              </div>
-            </div>
+              </PrefixInput>
+            </ModalField>
           </div>
 
           {error && (
-            <p className="text-[11px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-3 py-2">
+            <p style={{
+              fontSize: 12, padding: '8px 12px', borderRadius: 8,
+              background: 'rgba(251,113,133,0.08)', border: '1px solid rgba(251,113,133,0.25)',
+              color: 'var(--rose)',
+            }}>
               {error}
             </p>
           )}
 
-          <div className="flex items-center justify-end gap-2 pt-1">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+              style={{
+                padding: '7px 14px', borderRadius: 8, fontSize: 13,
+                background: 'var(--surface-2)', border: '1px solid var(--border-2)',
+                color: 'var(--text-dim)', cursor: 'pointer',
+                transition: 'color .15s, border-color .15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-dim)'}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={loading}
-              className="px-3 py-1.5 rounded bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[13px] font-medium hover:bg-gray-700 dark:hover:bg-gray-100 transition-colors disabled:opacity-50"
+              disabled={saving}
+              style={{
+                padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+                background: 'linear-gradient(180deg, var(--indigo), var(--indigo-2))',
+                boxShadow: '0 4px 14px var(--glow-i)',
+                color: '#fff', border: 'none', cursor: 'pointer',
+                opacity: saving ? 0.6 : 1,
+                transition: 'opacity .15s',
+              }}
             >
-              {loading ? 'Adding…' : 'Add property'}
+              {saving ? 'Adding…' : 'Add property'}
             </button>
           </div>
         </form>
       </motion.div>
+    </div>
+  )
+}
+
+// Small layout helpers for the modal form
+function ModalField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <label style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--text-dim)' }}>
+        {label}{required && <span style={{ color: 'var(--rose)', marginLeft: 3 }}>*</span>}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+function PrefixInput({ prefix, children }: { prefix: string; children: React.ReactNode }) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <span style={{
+        position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+        fontSize: 12, color: 'var(--text-mute)', pointerEvents: 'none',
+      }}>
+        {prefix}
+      </span>
+      {children}
     </div>
   )
 }
@@ -414,10 +440,10 @@ export default function PropertiesPage() {
   const params = useParams()
   const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
 
-  const [orgId, setOrgId] = useState<string | null>(null)
+  const [orgId, setOrgId]           = useState<string | null>(null)
   const [properties, setProperties] = useState<PropertyRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
+  const [loading, setLoading]       = useState(true)
+  const [showModal, setShowModal]   = useState(false)
 
   const load = useCallback(async () => {
     if (!orgSlug) return
@@ -431,7 +457,6 @@ export default function PropertiesPage() {
       .single()
 
     if (!org) { setLoading(false); return }
-
     setOrgId(org.id)
 
     const { data } = await supabase
@@ -454,7 +479,7 @@ export default function PropertiesPage() {
 
   const totalUnits = properties.reduce((s, p) => s + p.units.length, 0)
   const voidUnits  = properties.reduce((s, p) => s + p.units.filter(u => u.status === 'vacant').length, 0)
-  const subtitle = loading
+  const subtitle   = loading
     ? 'Loading…'
     : `${properties.length} propert${properties.length !== 1 ? 'ies' : 'y'} · ${totalUnits} unit${totalUnits !== 1 ? 's' : ''} · ${voidUnits} void`
 
@@ -466,34 +491,53 @@ export default function PropertiesPage() {
         action={{ label: 'Add Property', onClick: () => setShowModal(true) }}
       >
         <PageWrapper>
-          <div className="p-6">
-            {loading ? (
-              <div className="flex items-center justify-center min-h-[300px]">
-                <p className="text-[12px] text-gray-400">Loading properties…</p>
-              </div>
-            ) : (
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-              >
-                {properties.map(p => (
-                  <PropertyCard key={p.id} property={p} />
-                ))}
+          {loading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
+              <p style={{ fontSize: 12, color: 'var(--text-mute)' }}>Loading properties…</p>
+            </div>
+          ) : (
+            <motion.div
+              variants={grid}
+              initial="hidden"
+              animate="visible"
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}
+            >
+              {properties.map(p => (
+                <PropertyCard key={p.id} property={p} />
+              ))}
 
-                {/* Dashed add card */}
-                <motion.button
-                  variants={cardVariants}
-                  onClick={() => setShowModal(true)}
-                  className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 flex flex-col items-center justify-center gap-2 min-h-[180px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
-                >
-                  <IconPlus size={20} strokeWidth={1.5} />
-                  <span className="text-[12px] font-medium">Add property</span>
-                </motion.button>
-              </motion.div>
-            )}
-          </div>
+              {/* Dashed add card */}
+              <motion.button
+                variants={card}
+                onClick={() => setShowModal(true)}
+                style={{
+                  border: '1.5px dashed var(--border-2)',
+                  borderRadius: 14,
+                  minHeight: 180,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  background: 'transparent',
+                  color: 'var(--text-mute)',
+                  cursor: 'pointer',
+                  transition: 'border-color .15s, color .15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--indigo)'; e.currentTarget.style.color = 'var(--indigo)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-2)'; e.currentTarget.style.color = 'var(--text-mute)' }}
+              >
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: 'var(--surface-2)', border: '1px solid var(--border-2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <IconBuilding size={17} strokeWidth={1.6} />
+                </div>
+                <span style={{ fontSize: 12.5, fontWeight: 500 }}>Add property</span>
+              </motion.button>
+            </motion.div>
+          )}
         </PageWrapper>
       </AppShell>
 

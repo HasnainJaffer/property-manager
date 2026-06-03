@@ -143,3 +143,44 @@ body {
 /* Scrollbar styling */
 .crystal-scroll::-webkit-scrollbar { width: 6px; }
 .crystal-scroll::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 6px; }
+
+/* Form inputs / selects */
+.crystal-input, .crystal-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  appearance: none;
+}
+.crystal-input:focus, .crystal-select:focus {
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.14);
+}
+.crystal-input::placeholder { color: var(--text-mute); }
+.crystal-input.pl-5 { padding-left: 20px; }
+
+/* Modal overlay */
+.crystal-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Modal panel */
+.crystal-modal {
+  background: var(--bg);
+  border: 1px solid var(--border-2);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06) inset;
+}
+
+[data-theme="light"] .crystal-modal {
+  box-shadow: 0 24px 60px -12px rgba(15,23,42,0.22), 0 0 0 1px rgba(255,255,255,0.8) inset;
+}

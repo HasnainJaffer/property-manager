@@ -5,7 +5,6 @@ import { usePathname, useParams } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 import Topbar from './Topbar'
 import Sidebar from './Sidebar'
-import StaggeredMenu from './StaggeredMenu'
 import { createClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/lib/types'
 
@@ -31,7 +30,6 @@ interface ShellData {
 }
 
 export default function AppShell({ children, title, subtitle, action }: AppShellProps) {
-  const [drawerOpen, setDrawerOpen] = useState(false)
   const [shellData, setShellData] = useState<ShellData | null>(null)
   const pathname = usePathname()
   const params = useParams()
@@ -131,13 +129,6 @@ export default function AppShell({ children, title, subtitle, action }: AppShell
         }}
       />
 
-      {/* Mobile drawer (z-50, portal-style overlay) */}
-      <StaggeredMenu
-        isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        {...sidebarProps}
-      />
-
       {/* Two-column shell */}
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', height: '100%', overflow: 'hidden' }}>
 
@@ -147,18 +138,19 @@ export default function AppShell({ children, title, subtitle, action }: AppShell
         </div>
 
         {/* Main panel */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <Topbar
-            title={title}
-            subtitle={subtitle}
-            action={action}
-            onMobileMenuOpen={() => setDrawerOpen(true)}
-          />
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <main
-            style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '0 28px 36px' }}
+            style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden' }}
             className="crystal-scroll"
           >
-            {children}
+            <Topbar
+              title={title}
+              subtitle={subtitle}
+              action={action}
+            />
+            <div style={{ padding: '0 28px 48px' }}>
+              {children}
+            </div>
           </main>
         </div>
       </div>

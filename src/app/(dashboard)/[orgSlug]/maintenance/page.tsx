@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { IconX } from '@tabler/icons-react'
+import { IconX, IconChevronDown } from '@tabler/icons-react'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
@@ -30,6 +30,22 @@ interface PropertyOption {
   units: Array<{ id: string; unit_ref: string }>
 }
 
+// ─── Kanban config ────────────────────────────────────────────────────────────
+
+const COLUMNS: Array<{ key: string; label: string; accent: string }> = [
+  { key: 'open',        label: 'Open',        accent: 'var(--rose)'   },
+  { key: 'scheduled',   label: 'Scheduled',   accent: 'var(--indigo)' },
+  { key: 'in_progress', label: 'In Progress', accent: 'var(--amber)'  },
+  { key: 'completed',   label: 'Completed',   accent: 'var(--mint)'   },
+]
+
+const STATUS_OPTIONS = [
+  { value: 'open',        label: 'Open'        },
+  { value: 'scheduled',   label: 'Scheduled'   },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'completed',   label: 'Completed'   },
+]
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtDate(d: string) {
@@ -37,55 +53,275 @@ function fmtDate(d: string) {
   return `${day}/${m}/${y}`
 }
 
+function priorityAccent(priority: string): string {
+  if (priority === 'emergency' || priority === 'urgent') return 'var(--rose)'
+  if (priority === 'high' || priority === 'medium') return 'var(--amber)'
+  return 'var(--border-2)'
+}
+
+function sourceLabel(source: string): string {
+  if (source === 'inspection') return 'Via inspection'
+  if (source === 'routine') return 'Routine check'
+  return `Via ${source}`
+}
+
 // ─── Animations ───────────────────────────────────────────────────────────────
 
-const containerVariants = {
-  visible: { transition: { staggerChildren: 0.04 } },
-}
-const rowVariants = {
-  hidden: { opacity: 0, y: 3 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.15 } },
-}
+const colStagger = { visible: { transition: { staggerChildren: 0.06 } } }
+const cardAnim   = { hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0, transition: { duration: 0.18 } } }
 
-// ─── Badge components ─────────────────────────────────────────────────────────
+// ─── Priority badge ───────────────────────────────────────────────────────────
 
 function PriorityBadge({ priority }: { priority: string }) {
-  if (priority === 'emergency') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-400">Emergency</span>
-  )
-  if (priority === 'urgent') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-400">Urgent</span>
-  )
-  if (priority === 'high') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">High</span>
-  )
-  if (priority === 'medium') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Medium</span>
-  )
+  const label = priority.charAt(0).toUpperCase() + priority.slice(1)
+  if (priority === 'emergency' || priority === 'urgent') {
+    return <span className="crystal-pill arrears dot" style={{ fontSize: 10 }}>{label}</span>
+  }
+  if (priority === 'high' || priority === 'medium') {
+    return <span className="crystal-pill warn" style={{ fontSize: 10 }}>{label}</span>
+  }
+  return <span className="crystal-pill void" style={{ fontSize: 10 }}>{label}</span>
+}
+
+// ─── Status dropdown ──────────────────────────────────────────────────────────
+
+function StatusDropdown({
+  issueId,
+  current,
+  onChange,
+}: {
+  issueId: string
+  current: string
+  onChange: (id: string, status: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
   return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Low</span>
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 3,
+          padding: '3px 7px', borderRadius: 6,
+          border: '1px solid var(--border)',
+          background: 'var(--surface-2)',
+          color: 'var(--text-dim)', fontSize: 10, cursor: 'pointer',
+          transition: 'border-color .15s',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-2)')}
+        onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+      >
+        Move
+        <IconChevronDown size={9} strokeWidth={2} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.97 }}
+            transition={{ duration: 0.1 }}
+            style={{
+              position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 40,
+              background: 'var(--surface)', border: '1px solid var(--border-2)',
+              borderRadius: 10, overflow: 'hidden', minWidth: 130,
+              boxShadow: '0 8px 24px -4px rgba(0,0,0,0.4)',
+            }}
+          >
+            {STATUS_OPTIONS.filter(o => o.value !== current).map(opt => (
+              <button
+                key={opt.value}
+                onClick={e => { e.stopPropagation(); onChange(issueId, opt.value); setOpen(false) }}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '8px 12px', fontSize: 12, color: 'var(--text-dim)',
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  transition: 'background .1s, color .1s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'var(--surface-2)'
+                  e.currentTarget.style.color = 'var(--text)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = 'var(--text-dim)'
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === 'completed') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Completed</span>
-  )
-  if (status === 'in_progress') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">In Progress</span>
-  )
-  if (status === 'scheduled') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">Scheduled</span>
-  )
-  if (status === 'cancelled') return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Cancelled</span>
-  )
+// ─── Issue card ───────────────────────────────────────────────────────────────
+
+function IssueCard({
+  issue,
+  onStatusChange,
+}: {
+  issue: IssueRow
+  onStatusChange: (id: string, status: string) => void
+}) {
+  const accent = priorityAccent(issue.priority)
+
   return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Open</span>
+    <motion.div
+      variants={cardAnim}
+      layout
+      layoutId={issue.id}
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderLeft: `3px solid ${accent}`,
+        borderRadius: 10,
+        padding: '11px 12px',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 12px -4px rgba(0,0,0,0.22)',
+        cursor: 'default',
+        transition: 'border-color .15s, box-shadow .15s',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = 'var(--border-2)'
+        e.currentTarget.style.boxShadow = '0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 20px -4px rgba(0,0,0,0.32)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'var(--border)'
+        e.currentTarget.style.boxShadow = '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 12px -4px rgba(0,0,0,0.22)'
+      }}
+    >
+      {/* Title + source */}
+      <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500, color: 'var(--text)', lineHeight: 1.35 }}>
+        {issue.title}
+      </p>
+      {issue.source && (
+        <p style={{ margin: '3px 0 0', fontSize: 10.5, color: 'var(--text-mute)' }}>
+          {sourceLabel(issue.source)}
+        </p>
+      )}
+
+      {/* Property */}
+      {issue.properties?.name && (
+        <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--text-dim)' }}>
+          {issue.properties.name}
+          {issue.units?.unit_ref && (
+            <span style={{ color: 'var(--text-mute)', marginLeft: 4 }}>
+              · {issue.units.unit_ref}
+            </span>
+          )}
+        </p>
+      )}
+
+      {/* Footer row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <PriorityBadge priority={issue.priority} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-mute)' }}>
+            {fmtDate(issue.reported_date)}
+          </span>
+        </div>
+        <StatusDropdown issueId={issue.id} current={issue.status} onChange={onStatusChange} />
+      </div>
+
+      {issue.estimated_cost != null && (
+        <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--text-mute)' }}>
+          Est.{' '}
+          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
+            £{issue.estimated_cost.toLocaleString('en-GB')}
+          </span>
+        </p>
+      )}
+    </motion.div>
+  )
+}
+
+// ─── Kanban column ────────────────────────────────────────────────────────────
+
+function KanbanColumn({
+  col,
+  issues,
+  onStatusChange,
+}: {
+  col: typeof COLUMNS[number]
+  issues: IssueRow[]
+  onStatusChange: (id: string, status: string) => void
+}) {
+  return (
+    <div style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {/* Column header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '0 0 12px',
+        borderBottom: `2px solid ${col.accent}`,
+        marginBottom: 12,
+      }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text)', letterSpacing: '0.01em' }}>
+          {col.label}
+        </span>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          minWidth: 20, height: 18, padding: '0 5px', borderRadius: 6,
+          fontSize: 10, fontWeight: 600,
+          background: issues.length > 0 ? `${col.accent}22` : 'var(--surface-2)',
+          color: issues.length > 0 ? col.accent : 'var(--text-mute)',
+          border: issues.length > 0 ? `1px solid ${col.accent}44` : '1px solid var(--border)',
+        }}>
+          {issues.length}
+        </span>
+      </div>
+
+      {/* Cards */}
+      <motion.div
+        variants={colStagger}
+        initial="hidden"
+        animate="visible"
+        style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+      >
+        {issues.length === 0 ? (
+          <div style={{
+            border: '1px dashed var(--border)',
+            borderRadius: 10,
+            padding: '24px 16px',
+            textAlign: 'center',
+          }}>
+            <p style={{ fontSize: 11, color: 'var(--text-mute)', margin: 0 }}>No issues</p>
+          </div>
+        ) : (
+          issues.map(issue => (
+            <IssueCard key={issue.id} issue={issue} onStatusChange={onStatusChange} />
+          ))
+        )}
+      </motion.div>
+    </div>
   )
 }
 
 // ─── Log Issue Modal ──────────────────────────────────────────────────────────
+
+function MF({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-dim)', marginBottom: 5 }}>
+        {label}{required && <span style={{ color: 'var(--rose)', marginLeft: 2 }}>*</span>}
+      </label>
+      {children}
+    </div>
+  )
+}
 
 function LogIssueModal({
   orgId,
@@ -140,115 +376,113 @@ function LogIssueModal({
         estimated_cost: form.estimated_cost ? parseFloat(form.estimated_cost) : null,
       })
 
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
+    if (error) { setError(error.message); setLoading(false); return }
     onLogged()
   }
 
-  const inputClass =
-    'w-full px-3 py-2 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[13px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none focus:border-gray-400 dark:focus:border-gray-500 transition-colors'
-  const labelClass = 'block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1.5'
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="crystal-modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+        style={{ position: 'absolute', inset: 0 }}
         onClick={onClose}
       />
       <motion.div
-        initial={{ opacity: 0, scale: 0.97, y: 8 }}
+        initial={{ opacity: 0, scale: 0.97, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97 }}
         transition={{ duration: 0.15 }}
-        className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="crystal-modal crystal-scroll"
+        style={{ position: 'relative', width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' }}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10">
-          <h2 className="text-[14px] font-medium text-gray-900 dark:text-gray-100">Log maintenance issue</h2>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px', borderBottom: '1px solid var(--border)',
+          position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 1,
+        }}>
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+            Log maintenance issue
+          </h2>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            style={{
+              width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)',
+              color: 'var(--text-dim)', cursor: 'pointer',
+            }}
           >
-            <IconX size={15} strokeWidth={1.75} />
+            <IconX size={14} strokeWidth={2} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-3">
-          <div>
-            <label className={labelClass}>Issue title <span className="text-red-500">*</span></label>
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <MF label="Issue title" required>
             <input
               required
               value={form.title}
               onChange={e => set('title', e.target.value)}
               placeholder="e.g. Boiler not producing hot water"
-              className={inputClass}
+              className="crystal-input"
             />
-          </div>
+          </MF>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className={labelClass}>Property <span className="text-red-500">*</span></label>
-              <select required value={form.property_id} onChange={e => set('property_id', e.target.value)} className={inputClass}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <MF label="Property" required>
+              <select required value={form.property_id} onChange={e => set('property_id', e.target.value)} className="crystal-select">
                 {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-            </div>
-            <div>
-              <label className={labelClass}>Unit (optional)</label>
-              <select value={form.unit_id} onChange={e => set('unit_id', e.target.value)} className={inputClass}>
+            </MF>
+            <MF label="Unit (optional)">
+              <select value={form.unit_id} onChange={e => set('unit_id', e.target.value)} className="crystal-select">
                 <option value="">Whole property</option>
                 {selectedProperty?.units.map(u => <option key={u.id} value={u.id}>{u.unit_ref}</option>)}
               </select>
-            </div>
+            </MF>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className={labelClass}>Priority <span className="text-red-500">*</span></label>
-              <select required value={form.priority} onChange={e => set('priority', e.target.value)} className={inputClass}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <MF label="Priority" required>
+              <select required value={form.priority} onChange={e => set('priority', e.target.value)} className="crystal-select">
                 <option value="emergency">Emergency</option>
                 <option value="urgent">Urgent</option>
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
                 <option value="low">Low</option>
               </select>
-            </div>
-            <div>
-              <label className={labelClass}>Source</label>
-              <select value={form.source} onChange={e => set('source', e.target.value)} className={inputClass}>
+            </MF>
+            <MF label="Source">
+              <select value={form.source} onChange={e => set('source', e.target.value)} className="crystal-select">
                 <option value="tenant">Tenant</option>
                 <option value="manager">Manager</option>
                 <option value="inspection">Inspection</option>
                 <option value="routine">Routine</option>
                 <option value="other">Other</option>
               </select>
-            </div>
+            </MF>
           </div>
 
-          <div>
-            <label className={labelClass}>Description</label>
+          <MF label="Description">
             <textarea
               value={form.description}
               onChange={e => set('description', e.target.value)}
               placeholder="Describe the issue in detail…"
               rows={3}
-              className={`${inputClass} resize-none`}
+              className="crystal-input"
+              style={{ resize: 'none' }}
             />
-          </div>
+          </MF>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className={labelClass}>Reported date</label>
-              <input type="date" value={form.reported_date} onChange={e => set('reported_date', e.target.value)} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Est. cost</label>
-              <div className="relative">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-gray-400">£</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <MF label="Reported date">
+              <input type="date" value={form.reported_date} onChange={e => set('reported_date', e.target.value)} className="crystal-input" />
+            </MF>
+            <MF label="Est. cost">
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-mute)', pointerEvents: 'none' }}>£</span>
                 <input
                   type="number"
                   min="0"
@@ -256,23 +490,45 @@ function LogIssueModal({
                   value={form.estimated_cost}
                   onChange={e => set('estimated_cost', e.target.value)}
                   placeholder="150"
-                  className={`${inputClass} pl-5`}
+                  className="crystal-input"
+                  style={{ paddingLeft: 22 }}
                 />
               </div>
-            </div>
+            </MF>
           </div>
 
           {error && (
-            <p className="text-[11px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-3 py-2">
+            <p style={{
+              fontSize: 11, color: 'var(--rose)', padding: '8px 12px',
+              background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)',
+              borderRadius: 8, margin: 0,
+            }}>
               {error}
             </p>
           )}
 
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="px-3 py-1.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
+            <button
+              type="button" onClick={onClose}
+              style={{
+                padding: '7px 14px', borderRadius: 8,
+                border: '1px solid var(--border)', background: 'var(--surface)',
+                color: 'var(--text-dim)', fontSize: 13, cursor: 'pointer',
+                transition: 'border-color .15s, color .15s',
+              }}
+            >
               Cancel
             </button>
-            <button type="submit" disabled={loading} className="px-3 py-1.5 rounded bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[13px] font-medium hover:bg-gray-700 dark:hover:bg-gray-100 transition-colors disabled:opacity-50">
+            <button
+              type="submit" disabled={loading}
+              style={{
+                padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: 'linear-gradient(180deg, var(--indigo), var(--indigo-2))',
+                boxShadow: '0 4px 14px var(--glow-i)',
+                color: '#fff', fontSize: 13, fontWeight: 500,
+                opacity: loading ? 0.6 : 1, transition: 'opacity .15s',
+              }}
+            >
               {loading ? 'Logging…' : 'Log issue'}
             </button>
           </div>
@@ -285,13 +541,13 @@ function LogIssueModal({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MaintenancePage() {
-  const params = useParams()
+  const params  = useParams()
   const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
 
-  const [orgId, setOrgId] = useState<string | null>(null)
-  const [issues, setIssues] = useState<IssueRow[]>([])
+  const [orgId, setOrgId]         = useState<string | null>(null)
+  const [issues, setIssues]       = useState<IssueRow[]>([])
   const [properties, setProperties] = useState<PropertyOption[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading]     = useState(true)
   const [showModal, setShowModal] = useState(false)
 
   const load = useCallback(async () => {
@@ -335,11 +591,21 @@ export default function MaintenancePage() {
 
   useEffect(() => { load() }, [load])
 
-  const openCount = issues.filter(i => i.status === 'open').length
+  async function handleStatusChange(id: string, status: string) {
+    setIssues(prev => prev.map(i => i.id === id ? { ...i, status } : i))
+    await createClient().from('issues').update({ status }).eq('id', id)
+  }
+
+  const openCount   = issues.filter(i => i.status === 'open').length
   const urgentCount = issues.filter(i => i.priority === 'emergency' || i.priority === 'urgent').length
-  const subtitle = loading
+  const subtitle    = loading
     ? 'Loading…'
     : `${issues.length} issue${issues.length !== 1 ? 's' : ''} · ${openCount} open${urgentCount > 0 ? ` · ${urgentCount} urgent` : ''}`
+
+  const issuesByColumn = COLUMNS.reduce<Record<string, IssueRow[]>>((acc, col) => {
+    acc[col.key] = issues.filter(i => i.status === col.key)
+    return acc
+  }, {})
 
   return (
     <>
@@ -349,71 +615,24 @@ export default function MaintenancePage() {
         action={{ label: 'Log Issue', onClick: () => setShowModal(true) }}
       >
         <PageWrapper>
-          <div className="p-6">
-            {loading ? (
-              <div className="flex items-center justify-center min-h-[300px]">
-                <p className="text-[12px] text-gray-400">Loading issues…</p>
-              </div>
-            ) : issues.length === 0 ? (
-              <div className="flex items-center justify-center min-h-[300px]">
-                <div className="text-center">
-                  <p className="text-[13px] font-medium text-gray-900 dark:text-gray-100 mb-1">No issues logged</p>
-                  <p className="text-[12px] text-gray-500 dark:text-gray-400">Log an issue to start tracking maintenance.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Issue</th>
-                      <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Property</th>
-                      <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Reported</th>
-                      <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Priority</th>
-                      <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Status</th>
-                    </tr>
-                  </thead>
-                  <motion.tbody variants={containerVariants} initial="hidden" animate="visible">
-                    {issues.map((issue, i) => (
-                      <motion.tr
-                        key={issue.id}
-                        variants={rowVariants}
-                        className={`hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors ${
-                          i < issues.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''
-                        }`}
-                      >
-                        <td className="py-2.5 px-4">
-                          <p className="text-[12px] font-medium text-gray-900 dark:text-gray-100">{issue.title}</p>
-                          {issue.source && (
-                            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 capitalize">
-                              {issue.source === 'inspection' ? 'Via inspection' : `Via ${issue.source}`}
-                            </p>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <p className="text-[12px] text-gray-700 dark:text-gray-300">
-                            {issue.properties?.name ?? '—'}
-                          </p>
-                          {issue.units?.unit_ref && (
-                            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{issue.units.unit_ref}</p>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-4 text-[11px] font-mono text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                          {fmtDate(issue.reported_date)}
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <PriorityBadge priority={issue.priority} />
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <StatusBadge status={issue.status} />
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </motion.tbody>
-                </table>
-              </div>
-            )}
-          </div>
+
+          {loading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
+              <p style={{ fontSize: 12, color: 'var(--text-mute)' }}>Loading issues…</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+              {COLUMNS.map(col => (
+                <KanbanColumn
+                  key={col.key}
+                  col={col}
+                  issues={issuesByColumn[col.key] ?? []}
+                  onStatusChange={handleStatusChange}
+                />
+              ))}
+            </div>
+          )}
+
         </PageWrapper>
       </AppShell>
 

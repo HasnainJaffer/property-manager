@@ -40,16 +40,13 @@ function fmtDate(d: string) {
 }
 
 function daysUntil(dateStr: string): number {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const end = new Date(dateStr)
-  end.setHours(0, 0, 0, 0)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const end = new Date(dateStr); end.setHours(0, 0, 0, 0)
   return Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 }
 
 function isExpiring(t: TenancyRow): boolean {
-  if (t.status !== 'active' || !t.end_date) return false
-  return daysUntil(t.end_date) <= 60
+  return t.status === 'active' && !!t.end_date && daysUntil(t.end_date) <= 60
 }
 
 function leadTenantName(row: TenancyRow): string {
@@ -58,72 +55,7 @@ function leadTenantName(row: TenancyRow): string {
   return `${lead.tenants.first_name} ${lead.tenants.last_name}`
 }
 
-// ─── Animations ───────────────────────────────────────────────────────────────
-
-const containerVariants = {
-  visible: { transition: { staggerChildren: 0.04 } },
-}
-const rowVariants = {
-  hidden: { opacity: 0, y: 3 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.15 } },
-}
-
-// ─── Badge components ─────────────────────────────────────────────────────────
-
-function StatusBadge({ row }: { row: TenancyRow }) {
-  const exp = isExpiring(row)
-  if (row.status === 'active') {
-    return exp
-      ? <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Expiring</span>
-      : <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Active</span>
-  }
-  if (row.status === 'periodic') {
-    return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">Periodic</span>
-  }
-  if (row.status === 'in_notice') {
-    return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">In Notice</span>
-  }
-  if (row.status === 'ended') {
-    return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Ended</span>
-  }
-  if (row.status === 'cancelled') {
-    return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Cancelled</span>
-  }
-  return null
-}
-
-function DepositBadge({ row }: { row: TenancyRow }) {
-  if (!row.deposit_amount) return null
-  return row.deposit_registered_date
-    ? <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Protected</span>
-    : <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-400">Unprotected</span>
-}
-
-function EndDateCell({ row }: { row: TenancyRow }) {
-  if (!row.end_date) {
-    return <span className="text-[11px] text-gray-400 dark:text-gray-500">Rolling</span>
-  }
-  const days = daysUntil(row.end_date)
-  const urgent = days < 30
-  const warning = days >= 0 && days < 60
-  const cls = urgent
-    ? 'text-red-600 dark:text-red-400'
-    : warning
-    ? 'text-amber-600 dark:text-amber-400'
-    : 'text-gray-700 dark:text-gray-300'
-  return (
-    <span className={`font-mono text-[11px] ${cls}`}>
-      {fmtDate(row.end_date)}
-      {warning && (
-        <span className="ml-1.5 text-[10px] font-sans font-normal opacity-80">
-          ({days}d)
-        </span>
-      )}
-    </span>
-  )
-}
-
-// ─── Filter tab helpers ───────────────────────────────────────────────────────
+// ─── Filter tabs ──────────────────────────────────────────────────────────────
 
 const TABS: { key: FilterTab; label: string }[] = [
   { key: 'all',      label: 'All' },
@@ -143,15 +75,63 @@ function applyFilter(tenancies: TenancyRow[], tab: FilterTab): TenancyRow[] {
   }
 }
 
+// ─── Animations ───────────────────────────────────────────────────────────────
+
+const stagger = { visible: { transition: { staggerChildren: 0.04 } } }
+const row     = { hidden: { opacity: 0, y: 3 }, visible: { opacity: 1, y: 0, transition: { duration: 0.15 } } }
+
+// ─── Badge components ─────────────────────────────────────────────────────────
+
+function StatusBadge({ t }: { t: TenancyRow }) {
+  const exp = isExpiring(t)
+  if (t.status === 'active') {
+    return exp
+      ? <span className="crystal-pill warn dot" style={{ fontSize: 10.5 }}>Expiring</span>
+      : <span className="crystal-pill healthy dot" style={{ fontSize: 10.5 }}>Active</span>
+  }
+  if (t.status === 'periodic')  return <span className="crystal-pill dot" style={{ fontSize: 10.5, color: 'var(--indigo)', borderColor: 'rgba(129,140,248,.3)', background: 'rgba(129,140,248,.08)' }}>Periodic</span>
+  if (t.status === 'in_notice') return <span className="crystal-pill warn dot" style={{ fontSize: 10.5 }}>In Notice</span>
+  if (t.status === 'ended')     return <span className="crystal-pill void" style={{ fontSize: 10.5 }}>Ended</span>
+  if (t.status === 'cancelled') return <span className="crystal-pill void" style={{ fontSize: 10.5 }}>Cancelled</span>
+  return null
+}
+
+function DepositBadge({ t }: { t: TenancyRow }) {
+  if (!t.deposit_amount) return null
+  return t.deposit_registered_date
+    ? <span className="crystal-pill ok" style={{ fontSize: 10 }}>Protected</span>
+    : <span className="crystal-pill arrears" style={{ fontSize: 10 }}>Unprotected</span>
+}
+
+function EndDateCell({ t }: { t: TenancyRow }) {
+  if (!t.end_date) {
+    return <span style={{ fontSize: 11, color: 'var(--text-mute)' }}>Rolling</span>
+  }
+  const days   = daysUntil(t.end_date)
+  const urgent = days < 30
+  const warn   = days >= 0 && days < 60
+  const color  = urgent ? 'var(--rose)' : warn ? 'var(--amber)' : 'var(--text-dim)'
+  return (
+    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color }}>
+      {fmtDate(t.end_date)}
+      {warn && (
+        <span style={{ marginLeft: 6, fontSize: 10, fontFamily: 'inherit', opacity: 0.8 }}>
+          ({days}d)
+        </span>
+      )}
+    </span>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TenanciesPage() {
-  const params = useParams()
+  const params  = useParams()
   const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
 
   const [tenancies, setTenancies] = useState<TenancyRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<FilterTab>('all')
+  const [loading, setLoading]     = useState(true)
+  const [tab, setTab]             = useState<FilterTab>('all')
 
   const load = useCallback(async () => {
     if (!orgSlug) return
@@ -171,14 +151,8 @@ export default function TenanciesPage() {
       .select(`
         id, status, tenancy_type, rent_amount, rent_frequency,
         start_date, end_date, deposit_amount, deposit_scheme, deposit_registered_date,
-        units (
-          unit_ref,
-          properties ( name )
-        ),
-        tenancy_tenants (
-          is_lead,
-          tenants ( first_name, last_name )
-        )
+        units ( unit_ref, properties ( name ) ),
+        tenancy_tenants ( is_lead, tenants ( first_name, last_name ) )
       `)
       .eq('org_id', org.id)
       .order('start_date', { ascending: false })
@@ -197,106 +171,152 @@ export default function TenanciesPage() {
     ? 'Loading…'
     : `${activeCount} active · ${expiringCount} expiring within 60 days`
 
+  // ── Shared styles ─────────────────────────────────────────────────────────
+
+  const thStyle: React.CSSProperties = {
+    padding: '0 12px 10px',
+    fontSize: 10,
+    fontWeight: 500,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: 'var(--text-mute)',
+    textAlign: 'left',
+    whiteSpace: 'nowrap',
+  }
+
+  const tdBase: React.CSSProperties = {
+    padding: '11px 12px',
+    fontSize: 12,
+    borderBottom: '1px solid var(--border)',
+  }
+
   return (
     <AppShell title="Tenancies" subtitle={subtitle} action={{ label: 'New Tenancy' }}>
       <PageWrapper>
-        <div className="p-6">
-          {/* Filter tabs */}
-          <div className="flex items-center border-b border-gray-200 dark:border-gray-700 mb-4">
-            {TABS.map(t => (
+
+        {/* ── Filter tabs ─────────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+          {TABS.map(t => {
+            const active = tab === t.key
+            return (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`px-3 py-2 text-[12px] font-medium border-b-2 -mb-px transition-colors ${
-                  tab === t.key
-                    ? 'border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
+                style={{
+                  padding: '8px 12px',
+                  fontSize: 12.5,
+                  fontWeight: active ? 500 : 400,
+                  color: active ? 'var(--text)' : 'var(--text-dim)',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: `2px solid ${active ? 'var(--indigo)' : 'transparent'}`,
+                  marginBottom: -1,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'color .15s',
+                }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text)' }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
               >
                 {t.label}
                 {t.key === 'expiring' && !loading && expiringCount > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center w-[18px] h-[14px] rounded text-[9px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    minWidth: 18, height: 16, padding: '0 4px', borderRadius: 5,
+                    fontSize: 10, fontWeight: 500,
+                    background: 'rgba(251,191,36,.15)', color: 'var(--amber)',
+                  }}>
                     {expiringCount}
                   </span>
                 )}
               </button>
-            ))}
-          </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center min-h-[300px]">
-              <p className="text-[12px] text-gray-400">Loading tenancies…</p>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex items-center justify-center min-h-[300px]">
-              <div className="text-center">
-                <p className="text-[13px] font-medium text-gray-900 dark:text-gray-100 mb-1">No tenancies</p>
-                <p className="text-[12px] text-gray-500 dark:text-gray-400">
-                  {tab === 'all' ? 'Add a tenancy to get started.' : 'No tenancies match this filter.'}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Tenant</th>
-                    <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Property / Unit</th>
-                    <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Rent</th>
-                    <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Start</th>
-                    <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">End</th>
-                    <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Status</th>
-                    <th className="text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider py-2.5 px-4">Deposit</th>
-                  </tr>
-                </thead>
-                <motion.tbody variants={containerVariants} initial="hidden" animate="visible">
-                  {filtered.map((t, i) => (
-                    <motion.tr
-                      key={t.id}
-                      variants={rowVariants}
-                      className={`hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors ${
-                        i < filtered.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''
-                      }`}
-                    >
-                      <td className="py-2.5 px-4 text-[12px] font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                        {leadTenantName(t)}
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <p className="text-[12px] text-gray-700 dark:text-gray-300">
-                          {t.units?.properties?.name ?? '—'}
-                        </p>
-                        {t.units?.unit_ref && (
-                          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-                            {t.units.unit_ref}
-                          </p>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-4 whitespace-nowrap">
-                        <span className="text-[12px] font-mono text-gray-700 dark:text-gray-300">
-                          £{t.rent_amount.toLocaleString('en-GB')}
-                        </span>
-                        <span className="text-[10px] text-gray-400 font-sans">/mo</span>
-                      </td>
-                      <td className="py-2.5 px-4 text-[11px] font-mono text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                        {fmtDate(t.start_date)}
-                      </td>
-                      <td className="py-2.5 px-4 whitespace-nowrap">
-                        <EndDateCell row={t} />
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <StatusBadge row={t} />
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <DepositBadge row={t} />
-                      </td>
-                    </motion.tr>
-                  ))}
-                </motion.tbody>
-              </table>
-            </div>
-          )}
+            )
+          })}
         </div>
+
+        {/* ── Table ───────────────────────────────────────────────────────── */}
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
+            <p style={{ fontSize: 12, color: 'var(--text-mute)' }}>Loading tenancies…</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>No tenancies</p>
+              <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+                {tab === 'all' ? 'Add a tenancy to get started.' : 'No tenancies match this filter.'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 14,
+            overflow: 'hidden',
+            backdropFilter: 'blur(18px)',
+            WebkitBackdropFilter: 'blur(18px)',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 24px -8px rgba(0,0,0,0.28)',
+          }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <th style={thStyle}>Tenant</th>
+                  <th style={thStyle}>Property / Unit</th>
+                  <th style={thStyle}>Rent</th>
+                  <th style={thStyle}>Start</th>
+                  <th style={thStyle}>End</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Deposit</th>
+                </tr>
+              </thead>
+              <motion.tbody variants={stagger} initial="hidden" animate="visible">
+                {filtered.map((t, i) => (
+                  <motion.tr
+                    key={t.id}
+                    variants={row}
+                    className="crystal-table-row"
+                    style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none' }}
+                  >
+                    <td style={{ ...tdBase, fontWeight: 500, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+                      {leadTenantName(t)}
+                    </td>
+                    <td style={{ ...tdBase, color: 'var(--text-dim)' }}>
+                      <p style={{ margin: 0, color: 'var(--text)', fontSize: 12 }}>
+                        {t.units?.properties?.name ?? '—'}
+                      </p>
+                      {t.units?.unit_ref && (
+                        <p style={{ margin: '2px 0 0', fontSize: 10.5, color: 'var(--text-mute)' }}>
+                          {t.units.unit_ref}
+                        </p>
+                      )}
+                    </td>
+                    <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)', fontSize: 12 }}>
+                        £{t.rent_amount.toLocaleString('en-GB')}
+                      </span>
+                      <span style={{ fontSize: 10, color: 'var(--text-mute)', marginLeft: 2 }}>/mo</span>
+                    </td>
+                    <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+                      {fmtDate(t.start_date)}
+                    </td>
+                    <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
+                      <EndDateCell t={t} />
+                    </td>
+                    <td style={{ ...tdBase }}>
+                      <StatusBadge t={t} />
+                    </td>
+                    <td style={{ ...tdBase }}>
+                      <DepositBadge t={t} />
+                    </td>
+                  </motion.tr>
+                ))}
+              </motion.tbody>
+            </table>
+          </div>
+        )}
       </PageWrapper>
     </AppShell>
   )
