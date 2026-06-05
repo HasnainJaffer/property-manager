@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
   const isAuthPage = pathname === '/login' || pathname === '/signup'
-  const isPublic = isAuthPage || pathname.startsWith('/auth/')
+  const isPublic = isAuthPage || pathname.startsWith('/auth/') || pathname.startsWith('/api/auth/')
 
   // Unauthenticated user hitting a protected route → send to login
   if (!user && !isPublic && pathname !== '/') {

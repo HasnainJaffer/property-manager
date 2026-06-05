@@ -9,34 +9,9 @@ import { IconEye, IconEyeOff } from '@tabler/icons-react'
 function LoginForm() {
   const searchParams = useSearchParams()
   const next = searchParams.get('next') ?? '/dashboard'
+  const errorParam = searchParams.get('error')
 
-  const [email, setEmail]               = useState('')
-  const [password, setPassword]         = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError]               = useState<string | null>(null)
-  const [loading, setLoading]           = useState(false)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, next }),
-      redirect: 'manual',
-    })
-
-    if (res.type === 'opaqueredirect') {
-      window.location.href = next
-      return
-    }
-
-    const data = await res.json()
-    setError(data.error || 'Failed to sign in')
-    setLoading(false)
-  }
 
   return (
     <motion.div
@@ -79,7 +54,10 @@ function LoginForm() {
           Welcome back to your portfolio
         </p>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form method="POST" action="/api/auth/login" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Pass the ?next redirect through the form */}
+          <input type="hidden" name="next" value={next} />
 
           {/* Email */}
           <div>
@@ -88,9 +66,8 @@ function LoginForm() {
             </label>
             <input
               type="email"
+              name="email"
               required
-              value={email}
-              onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
               className="crystal-input"
             />
@@ -104,9 +81,8 @@ function LoginForm() {
             <div style={{ position: 'relative' }}>
               <input
                 type={showPassword ? 'text' : 'password'}
+                name="password"
                 required
-                value={password}
-                onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="crystal-input"
                 style={{ paddingRight: 38 }}
@@ -131,35 +107,34 @@ function LoginForm() {
             </div>
           </div>
 
-          {/* Error */}
-          {error && (
+          {/* Error from query param (set by server on failed login) */}
+          {errorParam && (
             <p style={{
               fontSize: 11.5, color: 'var(--rose)', margin: 0,
               padding: '8px 12px', borderRadius: 8,
               background: 'rgba(251,113,133,0.08)',
               border: '1px solid rgba(251,113,133,0.2)',
             }}>
-              {error}
+              {errorParam}
             </p>
           )}
 
           {/* Submit */}
           <button
             type="submit"
-            disabled={loading}
             style={{
               marginTop: 4,
               width: '100%', padding: '9px 0',
-              borderRadius: 9, border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+              borderRadius: 9, border: 'none', cursor: 'pointer',
               background: 'linear-gradient(180deg, var(--indigo), var(--indigo-2))',
               boxShadow: '0 4px 16px var(--glow-i)',
               color: '#fff', fontSize: 13.5, fontWeight: 500,
-              opacity: loading ? 0.6 : 1, transition: 'opacity .15s',
+              transition: 'opacity .15s',
             }}
-            onMouseEnter={e => { if (!loading) e.currentTarget.style.opacity = '0.88' }}
-            onMouseLeave={e => { if (!loading) e.currentTarget.style.opacity = '1' }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.88' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            Sign in
           </button>
         </form>
       </div>
