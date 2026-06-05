@@ -1,38 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { IconX, IconTrash } from '@tabler/icons-react'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
-import { createClient } from '@/lib/supabase/client'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface MemberRow {
-  id: string
-  first_name: string | null
-  last_name: string | null
-  is_active: boolean
-  created_at: string
-  roles: { name: string; label: string } | null
-}
-
-interface InviteRow {
-  id: string
-  email: string
-  created_at: string
-  expires_at: string
-  accepted_at: string | null
-  roles: { name: string; label: string } | null
-}
-
-interface RoleOption {
-  id: string
-  name: string
-  label: string
-}
+import { useOrgData, type MemberRow, type InviteRow, type RoleOption } from '@/lib/org-data-context'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -254,54 +227,10 @@ const tdBase: React.CSSProperties = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TeamPage() {
-  const params  = useParams()
-  const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
+  const { orgId, members, invitations: invites, roles, loading, refreshTeam, cancelInvite } = useOrgData()
+  const [showModal, setShowModal] = useState(false)
 
-  const [orgId, setOrgId]             = useState<string | null>(null)
-  const [members, setMembers]         = useState<MemberRow[]>([])
-  const [invites, setInvites]         = useState<InviteRow[]>([])
-  const [roles, setRoles]             = useState<RoleOption[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [showModal, setShowModal]     = useState(false)
-
-  const load = useCallback(async () => {
-    if (!orgSlug) return
-    setLoading(true)
-    const supabase = createClient()
-
-    const { data: org } = await supabase.from('organisations').select('id').eq('slug', orgSlug).single()
-    if (!org) { setLoading(false); return }
-    setOrgId(org.id)
-
-    const [{ data: memberData }, { data: inviteData }, { data: roleData }] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, first_name, last_name, is_active, created_at, roles ( name, label )')
-        .eq('org_id', org.id)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('invitations')
-        .select('id, email, created_at, expires_at, accepted_at, roles ( name, label )')
-        .eq('org_id', org.id)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('roles')
-        .select('id, name, label')
-        .order('sort_order', { ascending: true }),
-    ])
-
-    setMembers((memberData as unknown as MemberRow[]) ?? [])
-    setInvites((inviteData as unknown as InviteRow[]) ?? [])
-    setRoles((roleData as RoleOption[]) ?? [])
-    setLoading(false)
-  }, [orgSlug])
-
-  useEffect(() => { load() }, [load])
-
-  async function handleCancelInvite(id: string) {
-    setInvites(prev => prev.filter(i => i.id !== id))
-    await createClient().from('invitations').delete().eq('id', id)
-  }
+  const handleCancelInvite = cancelInvite
 
   const activeCount  = members.filter(m => m.is_active).length
   const pendingCount = invites.filter(i => !i.accepted_at && !isExpired(i.expires_at)).length
@@ -456,7 +385,7 @@ export default function TeamPage() {
             orgId={orgId}
             roles={roles}
             onClose={() => setShowModal(false)}
-            onInvited={() => { setShowModal(false); load() }}
+            onInvited={() => { setShowModal(false); refreshTeam() }}
           />
         )}
       </AnimatePresence>

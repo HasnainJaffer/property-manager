@@ -1,12 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { usePathname, useParams } from 'next/navigation'
-import { useRouter } from 'next/navigation'
 import Topbar from './Topbar'
 import Sidebar from './Sidebar'
-import { createClient } from '@/lib/supabase/client'
-import type { UserRole } from '@/lib/types'
+import { useOrgData } from '@/lib/org-data-context'
 
 interface AppShellAction {
   label: string
@@ -20,88 +17,32 @@ interface AppShellProps {
   action?: AppShellAction
 }
 
-interface ShellData {
-  firstName: string
-  lastName: string
-  role: UserRole
-  roleLabel: string
-  orgName: string
-  orgTypeLabel: string
-}
-
 export default function AppShell({ children, title, subtitle, action }: AppShellProps) {
-  const [shellData, setShellData] = useState<ShellData | null>(null)
+  const { orgSlug, orgName, orgTypeLabel, currentUser } = useOrgData()
   const pathname = usePathname()
-  const params = useParams()
-  const router = useRouter()
+  const params   = useParams()
 
-  const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
-  const segments = pathname.split('/').filter(Boolean)
-  const currentPage = segments[segments.length - 1] ?? 'dashboard'
+  const slug         = (typeof params?.orgSlug === 'string' ? params.orgSlug : '') || orgSlug
+  const segments     = pathname.split('/').filter(Boolean)
+  const currentPage  = segments[segments.length - 1] ?? 'dashboard'
 
-  useEffect(() => {
-    if (!orgSlug) return
-
-    async function load() {
-      const supabase = createClient()
-
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.replace('/login'); return }
-
-      const { data: org } = await supabase
-        .from('organisations')
-        .select('id, name, organisation_type_id')
-        .eq('slug', orgSlug)
-        .single()
-
-      if (!org) { router.replace('/onboarding'); return }
-
-      const [{ data: orgType }, { data: profile }] = await Promise.all([
-        supabase.from('organisation_types').select('label').eq('id', org.organisation_type_id).single(),
-        supabase.from('profiles').select('first_name, last_name, role_id').eq('user_id', user.id).eq('org_id', org.id).single(),
-      ])
-
-      if (!profile) { router.replace('/onboarding'); return }
-
-      const { data: roleRow } = await supabase
-        .from('roles')
-        .select('name, label')
-        .eq('id', profile.role_id)
-        .single()
-
-      setShellData({
-        firstName:    profile.first_name ?? '',
-        lastName:     profile.last_name ?? '',
-        role:         (roleRow?.name ?? 'owner') as UserRole,
-        roleLabel:    roleRow?.label ?? '',
-        orgName:      org.name,
-        orgTypeLabel: orgType?.label ?? '',
-      })
-    }
-
-    load()
-  }, [orgSlug, router])
-
-  const firstName    = shellData?.firstName ?? ''
-  const lastName     = shellData?.lastName ?? ''
+  const firstName    = currentUser?.firstName ?? ''
+  const lastName     = currentUser?.lastName  ?? ''
   const userName     = [firstName, lastName].filter(Boolean).join(' ')
   const userInitials = firstName && lastName
     ? `${firstName[0]}${lastName[0]}`.toUpperCase()
     : firstName ? firstName[0].toUpperCase() : '…'
 
-  // Badges wired to live counts when rent/compliance tables are active
-  const badges = { rent: 0, compliance: 0 }
-
   const sidebarProps = {
     currentPage,
-    orgSlug,
-    role:         shellData?.role ?? 'owner' as UserRole,
+    orgSlug:       slug,
+    role:          currentUser?.role ?? 'owner',
     userName,
     userInitials,
-    userRoleLabel: shellData?.roleLabel ?? '',
-    orgName:       shellData?.orgName ?? '',
-    orgTypeLabel:  shellData?.orgTypeLabel ?? '',
-    badges,
+    userRoleLabel: currentUser?.roleLabel ?? '',
+    orgName:       orgName  || '—',
+    orgTypeLabel:  orgTypeLabel || '—',
+    badges:        { rent: 0, compliance: 0 },
   }
 
   return (
@@ -132,7 +73,7 @@ export default function AppShell({ children, title, subtitle, action }: AppShell
       {/* Two-column shell */}
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', height: '100%', overflow: 'hidden' }}>
 
-        {/* Desktop sidebar — hidden on mobile */}
+        {/* Desktop sidebar */}
         <div className="hidden md:flex">
           <Sidebar {...sidebarProps} />
         </div>

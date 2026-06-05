@@ -1,33 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
-import { createClient } from '@/lib/supabase/client'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface TenantRow {
-  id: string
-  first_name: string
-  last_name: string
-  email: string | null
-  phone: string | null
-  right_to_rent_status: string | null
-  right_to_rent_expiry: string | null
-  is_active: boolean
-  tenancy_tenants: Array<{
-    tenancies: {
-      status: string
-      units: {
-        unit_ref: string
-        properties: { name: string } | null
-      } | null
-    } | null
-  }>
-}
+import { useOrgData, type TenantRow } from '@/lib/org-data-context'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -87,45 +63,7 @@ function ActiveBadge({ isActive }: { isActive: boolean }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TenantsPage() {
-  const params  = useParams()
-  const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
-
-  const [tenants, setTenants] = useState<TenantRow[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const load = useCallback(async () => {
-    if (!orgSlug) return
-    setLoading(true)
-    const supabase = createClient()
-
-    const { data: org } = await supabase
-      .from('organisations')
-      .select('id')
-      .eq('slug', orgSlug)
-      .single()
-
-    if (!org) { setLoading(false); return }
-
-    const { data } = await supabase
-      .from('tenants')
-      .select(`
-        id, first_name, last_name, email, phone,
-        right_to_rent_status, right_to_rent_expiry, is_active,
-        tenancy_tenants (
-          tenancies (
-            status,
-            units ( unit_ref, properties ( name ) )
-          )
-        )
-      `)
-      .eq('org_id', org.id)
-      .order('last_name', { ascending: true })
-
-    setTenants((data as unknown as TenantRow[]) ?? [])
-    setLoading(false)
-  }, [orgSlug])
-
-  useEffect(() => { load() }, [load])
+  const { tenants, loading } = useOrgData()
 
   const activeCount = tenants.filter(t => t.is_active).length
   const subtitle    = loading

@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { IconChevronLeft, IconChevronRight, IconX } from '@tabler/icons-react'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
+import { useOrgData, type ChargeRow } from '@/lib/org-data-context'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,24 +16,6 @@ interface MonthSummary {
   totalDue:  number
   collected: number
   shortLabel: string
-}
-
-interface ChargeRow {
-  id:          string
-  charge_type: string
-  description: string | null
-  due_date:    string
-  amount:      number
-  paid_amount: number
-  status:      string
-  tenancies: {
-    id: string
-    tenancy_tenants: Array<{
-      is_lead: boolean
-      tenants: { first_name: string; last_name: string } | null
-    }>
-    units: { unit_ref: string; properties: { name: string } | null } | null
-  } | null
 }
 
 interface ActiveTenancy {
@@ -477,17 +459,11 @@ function ModalField({ label, required, children }: { label: string; required?: b
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function RentPage() {
-  const params  = useParams()
-  const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
+  const { orgId, charges: allCharges, tenancies, loading, refreshCharges } = useOrgData()
 
   const now = new Date()
-  const [monthOffset, setMonthOffset]       = useState(0)
-  const [orgId, setOrgId]                   = useState<string | null>(null)
-  const [charges, setCharges]               = useState<ChargeRow[]>([])
-  const [monthSummaries, setMonthSummaries] = useState<MonthSummary[]>([])
-  const [activeTenancies, setActiveTenancies] = useState<ActiveTenancy[]>([])
-  const [loading, setLoading]               = useState(true)
-  const [showModal, setShowModal]           = useState(false)
+  const [monthOffset, setMonthOffset] = useState(0)
+  const [showModal, setShowModal]     = useState(false)
 
   // Compute selected year/month from offset
   const targetDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1)
@@ -496,82 +472,21 @@ export default function RentPage() {
   const firstDay = `${year}-${String(month).padStart(2, '0')}-01`
   const lastDay  = `${year}-${String(month).padStart(2, '0')}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`
 
-  const load = useCallback(async () => {
-    if (!orgSlug) return
-    setLoading(true)
-    const supabase = createClient()
+  // Filter cached charges to the selected month — no network call on month switch
+  const charges = allCharges.filter(c => c.due_date >= firstDay && c.due_date <= lastDay)
 
-    const { data: org } = await supabase
-      .from('organisations')
-      .select('id')
-      .eq('slug', orgSlug)
-      .single()
+  // Build 12-month summaries from the full cached charge set
+  const monthSummaries = buildMonthSummaries(allCharges)
 
-    if (!org) { setLoading(false); return }
-    setOrgId(org.id)
-
-    // Summary date range: first day of 11 months ago → last day of current month
-    const summaryStart = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().split('T')[0]
-    const summaryEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
-
-    const [detailRes, summaryRes, tenanciesRes] = await Promise.all([
-      supabase
-        .from('charges')
-        .select(`
-          id, charge_type, description, due_date, amount, paid_amount, status,
-          tenancies (
-            id,
-            tenancy_tenants ( is_lead, tenants ( first_name, last_name ) ),
-            units ( unit_ref, properties ( name ) )
-          )
-        `)
-        .eq('org_id', org.id)
-        .gte('due_date', firstDay)
-        .lte('due_date', lastDay)
-        .order('due_date', { ascending: true }),
-
-      supabase
-        .from('charges')
-        .select('due_date, amount, paid_amount')
-        .eq('org_id', org.id)
-        .gte('due_date', summaryStart)
-        .lte('due_date', summaryEnd)
-        .neq('status', 'waived'),
-
-      supabase
-        .from('tenancies')
-        .select(`
-          id,
-          tenancy_tenants ( is_lead, tenants ( first_name, last_name ) ),
-          units ( unit_ref, properties ( name ) )
-        `)
-        .eq('org_id', org.id)
-        .in('status', ['active', 'periodic', 'in_notice']),
-    ])
-
-    setCharges((detailRes.data as unknown as ChargeRow[]) ?? [])
-    setMonthSummaries(buildMonthSummaries(summaryRes.data ?? []))
-
-    if (tenanciesRes.data) {
-      setActiveTenancies(
-        (tenanciesRes.data as unknown as Array<{
-          id: string
-          tenancy_tenants: Array<{ is_lead: boolean; tenants: { first_name: string; last_name: string } | null }>
-          units: { unit_ref: string; properties: { name: string } | null } | null
-        }>).map(t => {
-          const lead = t.tenancy_tenants.find(tt => tt.is_lead) ?? t.tenancy_tenants[0]
-          const name = lead?.tenants ? `${lead.tenants.first_name} ${lead.tenants.last_name}` : '—'
-          const unit = t.units ? `${t.units.properties?.name ?? ''} · ${t.units.unit_ref}` : ''
-          return { id: t.id, lead_name: name, property_unit: unit }
-        })
-      )
-    }
-
-    setLoading(false)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgSlug, firstDay, lastDay])
-
-  useEffect(() => { load() }, [load])
+  // Derive active tenancies from cached tenancy data
+  const activeTenancies: ActiveTenancy[] = tenancies
+    .filter(t => ['active', 'periodic', 'in_notice'].includes(t.status))
+    .map(t => {
+      const lead = t.tenancy_tenants.find(tt => tt.is_lead) ?? t.tenancy_tenants[0]
+      const name = lead?.tenants ? `${lead.tenants.first_name} ${lead.tenants.last_name}` : '—'
+      const unit = t.units ? `${t.units.properties?.name ?? ''} · ${t.units.unit_ref}` : ''
+      return { id: t.id, lead_name: name, property_unit: unit }
+    })
 
   const totalDue     = charges.reduce((s, c) => s + c.amount, 0)
   const collected    = charges.reduce((s, c) => s + c.paid_amount, 0)
@@ -747,7 +662,7 @@ export default function RentPage() {
             orgId={orgId}
             tenancies={activeTenancies}
             onClose={() => setShowModal(false)}
-            onRecorded={() => { setShowModal(false); load() }}
+            onRecorded={() => { setShowModal(false); refreshCharges() }}
           />
         )}
       </AnimatePresence>

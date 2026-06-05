@@ -1,29 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams } from 'next/navigation'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { IconX, IconChevronDown } from '@tabler/icons-react'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
+import { useOrgData, type IssueRow } from '@/lib/org-data-context'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface IssueRow {
-  id: string
-  title: string
-  description: string | null
-  source: string
-  priority: string
-  status: string
-  reported_date: string
-  scheduled_date: string | null
-  estimated_cost: number | null
-  properties: { name: string } | null
-  units: { unit_ref: string } | null
-}
-
+// PropertyOption type used by modal — derived from context properties
 interface PropertyOption {
   id: string
   name: string
@@ -541,60 +526,17 @@ function LogIssueModal({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MaintenancePage() {
-  const params  = useParams()
-  const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
-
-  const [orgId, setOrgId]         = useState<string | null>(null)
-  const [issues, setIssues]       = useState<IssueRow[]>([])
-  const [properties, setProperties] = useState<PropertyOption[]>([])
-  const [loading, setLoading]     = useState(true)
+  const { orgId, issues, properties: ctxProperties, loading, refreshIssues, updateIssueStatus } = useOrgData()
   const [showModal, setShowModal] = useState(false)
 
-  const load = useCallback(async () => {
-    if (!orgSlug) return
-    setLoading(true)
-    const supabase = createClient()
+  // Derive property options with units from cached properties
+  const properties: PropertyOption[] = ctxProperties.map(p => ({
+    id: p.id,
+    name: p.name,
+    units: p.units.map(u => ({ id: u.id, unit_ref: u.unit_ref })),
+  }))
 
-    const { data: org } = await supabase
-      .from('organisations')
-      .select('id')
-      .eq('slug', orgSlug)
-      .single()
-
-    if (!org) { setLoading(false); return }
-    setOrgId(org.id)
-
-    const [{ data: issueData }, { data: propData }] = await Promise.all([
-      supabase
-        .from('issues')
-        .select(`
-          id, title, description, source, priority, status,
-          reported_date, scheduled_date, estimated_cost,
-          properties ( name ),
-          units ( unit_ref )
-        `)
-        .eq('org_id', org.id)
-        .eq('is_active', true)
-        .order('reported_date', { ascending: false }),
-      supabase
-        .from('properties')
-        .select('id, name, units ( id, unit_ref )')
-        .eq('org_id', org.id)
-        .eq('is_active', true)
-        .order('name', { ascending: true }),
-    ])
-
-    setIssues((issueData as unknown as IssueRow[]) ?? [])
-    setProperties((propData as unknown as PropertyOption[]) ?? [])
-    setLoading(false)
-  }, [orgSlug])
-
-  useEffect(() => { load() }, [load])
-
-  async function handleStatusChange(id: string, status: string) {
-    setIssues(prev => prev.map(i => i.id === id ? { ...i, status } : i))
-    await createClient().from('issues').update({ status }).eq('id', id)
-  }
+  const handleStatusChange = updateIssueStatus
 
   const openCount   = issues.filter(i => i.status === 'open').length
   const urgentCount = issues.filter(i => i.priority === 'emergency' || i.priority === 'urgent').length
@@ -642,7 +584,7 @@ export default function MaintenancePage() {
             orgId={orgId}
             properties={properties}
             onClose={() => setShowModal(false)}
-            onLogged={() => { setShowModal(false); load() }}
+            onLogged={() => { setShowModal(false); refreshIssues() }}
           />
         )}
       </AnimatePresence>
