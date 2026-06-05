@@ -7,6 +7,17 @@ import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgData, type ChargeRow } from '@/lib/org-data-context'
+import CrystalSelect from '@/components/ui/CrystalSelect'
+
+const PAYMENT_METHOD_OPTIONS = [
+  { value: 'bank_transfer',  label: 'Bank Transfer' },
+  { value: 'standing_order', label: 'Standing Order' },
+  { value: 'direct_debit',   label: 'Direct Debit' },
+  { value: 'cash',           label: 'Cash' },
+  { value: 'cheque',         label: 'Cheque' },
+  { value: 'card',           label: 'Card' },
+  { value: 'other',          label: 'Other' },
+]
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -380,9 +391,12 @@ function RecordPaymentModal({ orgId, tenancies, onClose, onRecorded }: {
         <form onSubmit={handleSubmit} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Tenancy */}
           <ModalField label="Tenancy" required>
-            <select required className="crystal-select" value={form.tenancy_id} onChange={e => set('tenancy_id', e.target.value)}>
-              {tenancies.map(t => <option key={t.id} value={t.id}>{t.lead_name} — {t.property_unit}</option>)}
-            </select>
+            <CrystalSelect
+              value={form.tenancy_id}
+              onChange={v => set('tenancy_id', v)}
+              options={tenancies.map(t => ({ value: t.id, label: `${t.lead_name} — ${t.property_unit}` }))}
+              placeholder="Select tenancy…"
+            />
           </ModalField>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -402,15 +416,11 @@ function RecordPaymentModal({ orgId, tenancies, onClose, onRecorded }: {
           </div>
 
           <ModalField label="Method">
-            <select className="crystal-select" value={form.payment_method} onChange={e => set('payment_method', e.target.value)}>
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="standing_order">Standing Order</option>
-              <option value="direct_debit">Direct Debit</option>
-              <option value="cash">Cash</option>
-              <option value="cheque">Cheque</option>
-              <option value="card">Card</option>
-              <option value="other">Other</option>
-            </select>
+            <CrystalSelect
+              value={form.payment_method}
+              onChange={v => set('payment_method', v)}
+              options={PAYMENT_METHOD_OPTIONS}
+            />
           </ModalField>
 
           <ModalField label="Reference">

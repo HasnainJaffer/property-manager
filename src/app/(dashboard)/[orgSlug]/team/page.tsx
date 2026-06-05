@@ -6,6 +6,7 @@ import { IconX, IconTrash } from '@tabler/icons-react'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { useOrgData, type MemberRow, type InviteRow, type RoleOption } from '@/lib/org-data-context'
+import CrystalSelect from '@/components/ui/CrystalSelect'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -162,9 +163,11 @@ function InviteMemberModal({
             <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-dim)', marginBottom: 6 }}>
               Role <span style={{ color: 'var(--rose)' }}>*</span>
             </label>
-            <select value={roleId} onChange={e => setRoleId(e.target.value)} className="crystal-select">
-              {invitableRoles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
-            </select>
+            <CrystalSelect
+              value={roleId}
+              onChange={setRoleId}
+              options={invitableRoles.map(r => ({ value: r.id, label: r.label }))}
+            />
           </div>
 
           <p style={{ fontSize: 11.5, color: 'var(--text-mute)', margin: 0, lineHeight: 1.55 }}>

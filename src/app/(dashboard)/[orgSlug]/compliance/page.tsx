@@ -7,6 +7,18 @@ import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgData, type CertRow } from '@/lib/org-data-context'
+import CrystalSelect from '@/components/ui/CrystalSelect'
+
+const CERT_TYPE_OPTIONS = [
+  { value: 'gas_safety', label: 'Gas Safety Certificate' },
+  { value: 'eicr',       label: 'EICR (Electrical Installation Condition Report)' },
+  { value: 'epc',        label: 'EPC (Energy Performance Certificate)' },
+  { value: 'fire_risk',  label: 'Fire Risk Assessment' },
+  { value: 'legionella', label: 'Legionella Risk Assessment' },
+  { value: 'pat_testing',label: 'PAT Testing' },
+  { value: 'asbestos',   label: 'Asbestos Survey' },
+  { value: 'other',      label: 'Other' },
+]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -183,22 +195,20 @@ function AddCertModal({ orgId, properties, onClose, onAdded }: {
 
         <form onSubmit={handleSubmit} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <MF label="Certificate type" required>
-            <select required className="crystal-select" value={form.certificate_type} onChange={e => set('certificate_type', e.target.value)}>
-              <option value="gas_safety">Gas Safety Certificate</option>
-              <option value="eicr">EICR (Electrical Installation Condition Report)</option>
-              <option value="epc">EPC (Energy Performance Certificate)</option>
-              <option value="fire_risk">Fire Risk Assessment</option>
-              <option value="legionella">Legionella Risk Assessment</option>
-              <option value="pat_testing">PAT Testing</option>
-              <option value="asbestos">Asbestos Survey</option>
-              <option value="other">Other</option>
-            </select>
+            <CrystalSelect
+              value={form.certificate_type}
+              onChange={v => set('certificate_type', v)}
+              options={CERT_TYPE_OPTIONS}
+            />
           </MF>
 
           <MF label="Property" required>
-            <select required className="crystal-select" value={form.property_id} onChange={e => set('property_id', e.target.value)}>
-              {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <CrystalSelect
+              value={form.property_id}
+              onChange={v => set('property_id', v)}
+              options={properties.map(p => ({ value: p.id, label: p.name }))}
+              placeholder="Select property…"
+            />
           </MF>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

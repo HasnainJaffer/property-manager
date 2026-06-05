@@ -7,6 +7,23 @@ import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgData, type IssueRow } from '@/lib/org-data-context'
+import CrystalSelect from '@/components/ui/CrystalSelect'
+
+const PRIORITY_OPTIONS = [
+  { value: 'emergency', label: 'Emergency' },
+  { value: 'urgent',    label: 'Urgent' },
+  { value: 'high',      label: 'High' },
+  { value: 'medium',    label: 'Medium' },
+  { value: 'low',       label: 'Low' },
+]
+
+const SOURCE_OPTIONS = [
+  { value: 'tenant',     label: 'Tenant' },
+  { value: 'manager',    label: 'Manager' },
+  { value: 'inspection', label: 'Inspection' },
+  { value: 'routine',    label: 'Routine' },
+  { value: 'other',      label: 'Other' },
+]
 
 // PropertyOption type used by modal — derived from context properties
 interface PropertyOption {
@@ -417,36 +434,39 @@ function LogIssueModal({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <MF label="Property" required>
-              <select required value={form.property_id} onChange={e => set('property_id', e.target.value)} className="crystal-select">
-                {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <CrystalSelect
+                value={form.property_id}
+                onChange={v => set('property_id', v)}
+                options={properties.map(p => ({ value: p.id, label: p.name }))}
+                placeholder="Select property…"
+              />
             </MF>
             <MF label="Unit (optional)">
-              <select value={form.unit_id} onChange={e => set('unit_id', e.target.value)} className="crystal-select">
-                <option value="">Whole property</option>
-                {selectedProperty?.units.map(u => <option key={u.id} value={u.id}>{u.unit_ref}</option>)}
-              </select>
+              <CrystalSelect
+                value={form.unit_id}
+                onChange={v => set('unit_id', v)}
+                options={[
+                  { value: '', label: 'Whole property' },
+                  ...(selectedProperty?.units.map(u => ({ value: u.id, label: u.unit_ref })) ?? []),
+                ]}
+              />
             </MF>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <MF label="Priority" required>
-              <select required value={form.priority} onChange={e => set('priority', e.target.value)} className="crystal-select">
-                <option value="emergency">Emergency</option>
-                <option value="urgent">Urgent</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
+              <CrystalSelect
+                value={form.priority}
+                onChange={v => set('priority', v)}
+                options={PRIORITY_OPTIONS}
+              />
             </MF>
             <MF label="Source">
-              <select value={form.source} onChange={e => set('source', e.target.value)} className="crystal-select">
-                <option value="tenant">Tenant</option>
-                <option value="manager">Manager</option>
-                <option value="inspection">Inspection</option>
-                <option value="routine">Routine</option>
-                <option value="other">Other</option>
-              </select>
+              <CrystalSelect
+                value={form.source}
+                onChange={v => set('source', v)}
+                options={SOURCE_OPTIONS}
+              />
             </MF>
           </div>
 

@@ -7,6 +7,7 @@ import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgData, type PropertyRow, type PropertyType } from '@/lib/org-data-context'
+import CrystalSelect from '@/components/ui/CrystalSelect'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -239,14 +240,12 @@ function AddPropertyModal({ orgId, propertyTypes, onClose, onAdded }: {
 
           {/* Property type */}
           <ModalField label="Property type" required>
-            <select
-              required
-              className="crystal-select"
+            <CrystalSelect
               value={form.property_type_id}
-              onChange={e => set('property_type_id', e.target.value)}
-            >
-              {propertyTypes.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
+              onChange={v => set('property_type_id', v)}
+              options={propertyTypes.map(t => ({ value: t.id, label: t.label }))}
+              placeholder="Select type…"
+            />
           </ModalField>
 
           {/* Address */}
