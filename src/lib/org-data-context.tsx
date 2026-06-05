@@ -1,7 +1,6 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
-import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/lib/types'
 import LoadingScreen from '@/components/ui/LoadingScreen'
@@ -179,9 +178,15 @@ export function useOrgData(): OrgContextValue {
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
-export function OrgDataProvider({ children }: { children: React.ReactNode }) {
-  const params  = useParams()
-  const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
+export function OrgDataProvider({
+  children,
+  orgSlug,
+  userId,
+}: {
+  children: React.ReactNode
+  orgSlug: string
+  userId: string | null
+}) {
 
   const [orgId,       setOrgId]       = useState('')
   const [orgName,     setOrgName]     = useState('')
@@ -288,24 +293,23 @@ export function OrgDataProvider({ children }: { children: React.ReactNode }) {
     setRoles((roleData as RoleOption[])                    ?? [])
   }, [chargeStart, chargeEnd])
 
-  // Bootstrap: resolve slug → org + user → fetch all data. try/finally guarantees
-  // setLoading(false) is always called even if a query fails.
+  // Bootstrap: orgSlug and userId are resolved server-side by layout.tsx and
+  // passed as props — no client-side auth.getUser() call that can hang on Vercel.
   useEffect(() => {
-    if (!orgSlug) return
+    if (!orgSlug || !userId) return
 
     const run = async () => {
       setLoading(true)
       try {
         const sb = createClient()
 
-        const [{ data: { user } }, { data: org }] = await Promise.all([
-          sb.auth.getUser(),
-          sb.from('organisations')
-            .select('id, name, organisation_types ( label )')
-            .eq('slug', orgSlug).single(),
-        ])
+        const { data: org } = await sb
+          .from('organisations')
+          .select('id, name, organisation_types ( label )')
+          .eq('slug', orgSlug)
+          .single()
 
-        if (!user || !org) return
+        if (!org) return
 
         setOrgId(org.id)
         setOrgName(org.name)
@@ -317,7 +321,7 @@ export function OrgDataProvider({ children }: { children: React.ReactNode }) {
           fetchAll(org.id),
           sb.from('profiles')
             .select('first_name, last_name, roles ( name, label )')
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
             .eq('org_id', org.id)
             .single(),
         ])
@@ -344,7 +348,7 @@ export function OrgDataProvider({ children }: { children: React.ReactNode }) {
     }
 
     run()
-  }, [orgSlug, fetchAll])
+  }, [orgSlug, userId, fetchAll])
 
   // ── Targeted refreshes ────────────────────────────────────────────────────
 
