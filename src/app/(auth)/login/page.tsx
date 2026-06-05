@@ -15,15 +15,17 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting,   setSubmitting]   = useState(false)
 
-  // Called on native form submit — does NOT prevent default, so the form still
-  // POSTs natively. We just flip the loading flag for the visual overlay.
+  // Called on native form submit — does NOT prevent default, so the form
+  // POSTs natively. The LoadingScreen renders as a fixed overlay on top of
+  // the existing form so the <form> element stays mounted in the DOM and
+  // the browser can complete the submission before navigating away.
   function handleSubmit() {
     setSubmitting(true)
   }
 
-  if (submitting) return <LoadingScreen message="Authenticating…" />
-
   return (
+    <>
+      {submitting && <LoadingScreen message="Authenticating…" />}
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
@@ -162,6 +164,7 @@ function LoginForm() {
         </Link>
       </p>
     </motion.div>
+    </>
   )
 }
 

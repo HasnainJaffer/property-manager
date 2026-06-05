@@ -288,53 +288,62 @@ export function OrgDataProvider({ children }: { children: React.ReactNode }) {
     setRoles((roleData as RoleOption[])                    ?? [])
   }, [chargeStart, chargeEnd])
 
-  // Bootstrap: resolve slug → org + user in parallel → fetch all page data + profile in parallel
+  // Bootstrap: resolve slug → org + user → fetch all data. try/finally guarantees
+  // setLoading(false) is always called even if a query fails.
   useEffect(() => {
     if (!orgSlug) return
-    setLoading(true)
-    const sb = createClient()
 
-    Promise.all([
-      sb.auth.getUser(),
-      sb.from('organisations')
-        .select('id, name, organisation_types ( label )')
-        .eq('slug', orgSlug).single(),
-    ]).then(async ([{ data: { user } }, { data: org }]) => {
-      if (!user || !org) { setLoading(false); return }
+    const run = async () => {
+      setLoading(true)
+      try {
+        const sb = createClient()
 
-      setOrgId(org.id)
-      setOrgName(org.name)
-      setOrgTypeLabel(
-        (org.organisation_types as unknown as { label: string } | null)?.label ?? ''
-      )
+        const [{ data: { user } }, { data: org }] = await Promise.all([
+          sb.auth.getUser(),
+          sb.from('organisations')
+            .select('id, name, organisation_types ( label )')
+            .eq('slug', orgSlug).single(),
+        ])
 
-      // Fetch all page data and current user's profile in parallel
-      const [, { data: profile }] = await Promise.all([
-        fetchAll(org.id),
-        sb.from('profiles')
-          .select('first_name, last_name, roles ( name, label )')
-          .eq('user_id', user.id)
-          .eq('org_id', org.id)
-          .single(),
-      ])
+        if (!user || !org) return
 
-      const p = profile as unknown as {
-        first_name: string | null
-        last_name: string | null
-        roles: { name: string; label: string } | null
-      } | null
+        setOrgId(org.id)
+        setOrgName(org.name)
+        setOrgTypeLabel(
+          (org.organisation_types as unknown as { label: string } | null)?.label ?? ''
+        )
 
-      if (p) {
-        setCurrentUser({
-          firstName: p.first_name ?? '',
-          lastName:  p.last_name  ?? '',
-          role:      (p.roles?.name ?? 'owner') as UserRole,
-          roleLabel: p.roles?.label ?? '',
-        })
+        const [, { data: profile }] = await Promise.all([
+          fetchAll(org.id),
+          sb.from('profiles')
+            .select('first_name, last_name, roles ( name, label )')
+            .eq('user_id', user.id)
+            .eq('org_id', org.id)
+            .single(),
+        ])
+
+        const p = profile as unknown as {
+          first_name: string | null
+          last_name: string | null
+          roles: { name: string; label: string } | null
+        } | null
+
+        if (p) {
+          setCurrentUser({
+            firstName: p.first_name ?? '',
+            lastName:  p.last_name  ?? '',
+            role:      (p.roles?.name ?? 'owner') as UserRole,
+            roleLabel: p.roles?.label ?? '',
+          })
+        }
+      } catch (err) {
+        console.error('OrgDataProvider bootstrap failed:', err)
+      } finally {
+        setLoading(false)
       }
+    }
 
-      setLoading(false)
-    })
+    run()
   }, [orgSlug, fetchAll])
 
   // ── Targeted refreshes ────────────────────────────────────────────────────
@@ -416,8 +425,6 @@ export function OrgDataProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t)
   }, [loading])
 
-  if (loading) return <LoadingScreen message={loadingMsg} />
-
   return (
     <OrgDataContext.Provider value={{
       orgId, orgSlug, orgName, orgTypeLabel, currentUser,
@@ -426,6 +433,9 @@ export function OrgDataProvider({ children }: { children: React.ReactNode }) {
       refreshProperties, refreshCharges, refreshCerts, refreshIssues, refreshTeam,
       updateIssueStatus, cancelInvite,
     }}>
+      {/* Loading screen sits as a fixed overlay so children always mount,
+          React hooks in child components are never broken by a conditional tree. */}
+      {loading && <LoadingScreen message={loadingMsg} />}
       {children}
     </OrgDataContext.Provider>
   )
