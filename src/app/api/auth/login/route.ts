@@ -7,7 +7,9 @@ export async function POST(request: NextRequest) {
   const email = (formData.get('email') ?? '') as string
   const password = (formData.get('password') ?? '') as string
   const next = formData.get('next') as string | null
-  const redirectPath = (typeof next === 'string' && next.startsWith('/')) ? next : '/dashboard'
+
+  // Only honour ?next if it's an explicit non-dashboard path (e.g. invite redirect)
+  const hasExplicitNext = typeof next === 'string' && next.startsWith('/') && next !== '/dashboard'
 
   const pendingCookies: Array<{ name: string; value: string; options: CookieOptions }> = []
 
@@ -28,21 +30,42 @@ export async function POST(request: NextRequest) {
     }
   )
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const { data: { user }, error } = await supabase.auth.signInWithPassword({ email, password })
 
-  if (error) {
+  if (error || !user) {
     const errorUrl = new URL('/login', request.url)
     errorUrl.searchParams.set('error', 'Invalid email or password')
-    if (redirectPath !== '/dashboard') {
-      errorUrl.searchParams.set('next', redirectPath)
-    }
+    if (hasExplicitNext) errorUrl.searchParams.set('next', next!)
     return NextResponse.redirect(errorUrl, { status: 303 })
   }
 
-  // 303 See Other converts the browser's POST into a GET for the redirect,
-  // which is the standard POST→Redirect→GET pattern. Cookies are still committed
-  // from this response before the browser issues the GET to /dashboard.
-  const response = NextResponse.redirect(new URL(redirectPath, request.url), { status: 303 })
+  // Resolve the org slug here so we redirect directly to /{orgSlug}/dashboard,
+  // skipping the /dashboard server component round trip (saves 3 Supabase calls).
+  let destination = hasExplicitNext ? next! : '/dashboard'
+
+  if (!hasExplicitNext) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('org_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (profile?.org_id) {
+      const { data: org } = await supabase
+        .from('organisations')
+        .select('slug')
+        .eq('id', profile.org_id)
+        .single()
+
+      if (org?.slug) destination = `/${org.slug}/dashboard`
+    }
+  }
+
+  // 303 converts the browser's POST to a GET before navigating to destination.
+  const response = NextResponse.redirect(new URL(destination, request.url), { status: 303 })
   pendingCookies.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, options)
   })
