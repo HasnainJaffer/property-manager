@@ -1,34 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
-import { createClient } from '@/lib/supabase/client'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface TenancyRow {
-  id: string
-  status: string
-  tenancy_type: string
-  rent_amount: number
-  rent_frequency: string
-  start_date: string
-  end_date: string | null
-  deposit_amount: number | null
-  deposit_scheme: string | null
-  deposit_registered_date: string | null
-  units: {
-    unit_ref: string
-    properties: { name: string } | null
-  } | null
-  tenancy_tenants: Array<{
-    is_lead: boolean
-    tenants: { first_name: string; last_name: string } | null
-  }>
-}
+import { useOrgData, type TenancyRow } from '@/lib/org-data-context'
 
 type FilterTab = 'all' | 'active' | 'expiring' | 'periodic' | 'ended'
 
@@ -126,42 +102,8 @@ function EndDateCell({ t }: { t: TenancyRow }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TenanciesPage() {
-  const params  = useParams()
-  const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
-
-  const [tenancies, setTenancies] = useState<TenancyRow[]>([])
-  const [loading, setLoading]     = useState(true)
-  const [tab, setTab]             = useState<FilterTab>('all')
-
-  const load = useCallback(async () => {
-    if (!orgSlug) return
-    setLoading(true)
-    const supabase = createClient()
-
-    const { data: org } = await supabase
-      .from('organisations')
-      .select('id')
-      .eq('slug', orgSlug)
-      .single()
-
-    if (!org) { setLoading(false); return }
-
-    const { data } = await supabase
-      .from('tenancies')
-      .select(`
-        id, status, tenancy_type, rent_amount, rent_frequency,
-        start_date, end_date, deposit_amount, deposit_scheme, deposit_registered_date,
-        units ( unit_ref, properties ( name ) ),
-        tenancy_tenants ( is_lead, tenants ( first_name, last_name ) )
-      `)
-      .eq('org_id', org.id)
-      .order('start_date', { ascending: false })
-
-    setTenancies((data as unknown as TenancyRow[]) ?? [])
-    setLoading(false)
-  }, [orgSlug])
-
-  useEffect(() => { load() }, [load])
+  const { tenancies, loading } = useOrgData()
+  const [tab, setTab] = useState<FilterTab>('all')
 
   const activeCount   = tenancies.filter(t => ['active', 'periodic', 'in_notice'].includes(t.status)).length
   const expiringCount = tenancies.filter(t => isExpiring(t)).length

@@ -1,29 +1,32 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams } from 'next/navigation'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { IconX, IconChevronDown } from '@tabler/icons-react'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
+import { useOrgData, type IssueRow } from '@/lib/org-data-context'
+import CrystalSelect from '@/components/ui/CrystalSelect'
+import CrystalDatePicker from '@/components/ui/CrystalDatePicker'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+const PRIORITY_OPTIONS = [
+  { value: 'emergency', label: 'Emergency' },
+  { value: 'urgent',    label: 'Urgent' },
+  { value: 'high',      label: 'High' },
+  { value: 'medium',    label: 'Medium' },
+  { value: 'low',       label: 'Low' },
+]
 
-interface IssueRow {
-  id: string
-  title: string
-  description: string | null
-  source: string
-  priority: string
-  status: string
-  reported_date: string
-  scheduled_date: string | null
-  estimated_cost: number | null
-  properties: { name: string } | null
-  units: { unit_ref: string } | null
-}
+const SOURCE_OPTIONS = [
+  { value: 'tenant',     label: 'Tenant' },
+  { value: 'manager',    label: 'Manager' },
+  { value: 'inspection', label: 'Inspection' },
+  { value: 'routine',    label: 'Routine' },
+  { value: 'other',      label: 'Other' },
+]
 
+// PropertyOption type used by modal — derived from context properties
 interface PropertyOption {
   id: string
   name: string
@@ -432,36 +435,39 @@ function LogIssueModal({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <MF label="Property" required>
-              <select required value={form.property_id} onChange={e => set('property_id', e.target.value)} className="crystal-select">
-                {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <CrystalSelect
+                value={form.property_id}
+                onChange={v => set('property_id', v)}
+                options={properties.map(p => ({ value: p.id, label: p.name }))}
+                placeholder="Select property…"
+              />
             </MF>
             <MF label="Unit (optional)">
-              <select value={form.unit_id} onChange={e => set('unit_id', e.target.value)} className="crystal-select">
-                <option value="">Whole property</option>
-                {selectedProperty?.units.map(u => <option key={u.id} value={u.id}>{u.unit_ref}</option>)}
-              </select>
+              <CrystalSelect
+                value={form.unit_id}
+                onChange={v => set('unit_id', v)}
+                options={[
+                  { value: '', label: 'Whole property' },
+                  ...(selectedProperty?.units.map(u => ({ value: u.id, label: u.unit_ref })) ?? []),
+                ]}
+              />
             </MF>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <MF label="Priority" required>
-              <select required value={form.priority} onChange={e => set('priority', e.target.value)} className="crystal-select">
-                <option value="emergency">Emergency</option>
-                <option value="urgent">Urgent</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
+              <CrystalSelect
+                value={form.priority}
+                onChange={v => set('priority', v)}
+                options={PRIORITY_OPTIONS}
+              />
             </MF>
             <MF label="Source">
-              <select value={form.source} onChange={e => set('source', e.target.value)} className="crystal-select">
-                <option value="tenant">Tenant</option>
-                <option value="manager">Manager</option>
-                <option value="inspection">Inspection</option>
-                <option value="routine">Routine</option>
-                <option value="other">Other</option>
-              </select>
+              <CrystalSelect
+                value={form.source}
+                onChange={v => set('source', v)}
+                options={SOURCE_OPTIONS}
+              />
             </MF>
           </div>
 
@@ -478,7 +484,10 @@ function LogIssueModal({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <MF label="Reported date">
-              <input type="date" value={form.reported_date} onChange={e => set('reported_date', e.target.value)} className="crystal-input" />
+              <CrystalDatePicker
+                value={form.reported_date}
+                onChange={v => set('reported_date', v)}
+              />
             </MF>
             <MF label="Est. cost">
               <div style={{ position: 'relative' }}>
@@ -541,60 +550,17 @@ function LogIssueModal({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MaintenancePage() {
-  const params  = useParams()
-  const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
-
-  const [orgId, setOrgId]         = useState<string | null>(null)
-  const [issues, setIssues]       = useState<IssueRow[]>([])
-  const [properties, setProperties] = useState<PropertyOption[]>([])
-  const [loading, setLoading]     = useState(true)
+  const { orgId, issues, properties: ctxProperties, loading, refreshIssues, updateIssueStatus } = useOrgData()
   const [showModal, setShowModal] = useState(false)
 
-  const load = useCallback(async () => {
-    if (!orgSlug) return
-    setLoading(true)
-    const supabase = createClient()
+  // Derive property options with units from cached properties
+  const properties: PropertyOption[] = ctxProperties.map(p => ({
+    id: p.id,
+    name: p.name,
+    units: p.units.map(u => ({ id: u.id, unit_ref: u.unit_ref })),
+  }))
 
-    const { data: org } = await supabase
-      .from('organisations')
-      .select('id')
-      .eq('slug', orgSlug)
-      .single()
-
-    if (!org) { setLoading(false); return }
-    setOrgId(org.id)
-
-    const [{ data: issueData }, { data: propData }] = await Promise.all([
-      supabase
-        .from('issues')
-        .select(`
-          id, title, description, source, priority, status,
-          reported_date, scheduled_date, estimated_cost,
-          properties ( name ),
-          units ( unit_ref )
-        `)
-        .eq('org_id', org.id)
-        .eq('is_active', true)
-        .order('reported_date', { ascending: false }),
-      supabase
-        .from('properties')
-        .select('id, name, units ( id, unit_ref )')
-        .eq('org_id', org.id)
-        .eq('is_active', true)
-        .order('name', { ascending: true }),
-    ])
-
-    setIssues((issueData as unknown as IssueRow[]) ?? [])
-    setProperties((propData as unknown as PropertyOption[]) ?? [])
-    setLoading(false)
-  }, [orgSlug])
-
-  useEffect(() => { load() }, [load])
-
-  async function handleStatusChange(id: string, status: string) {
-    setIssues(prev => prev.map(i => i.id === id ? { ...i, status } : i))
-    await createClient().from('issues').update({ status }).eq('id', id)
-  }
+  const handleStatusChange = updateIssueStatus
 
   const openCount   = issues.filter(i => i.status === 'open').length
   const urgentCount = issues.filter(i => i.priority === 'emergency' || i.priority === 'urgent').length
@@ -642,7 +608,7 @@ export default function MaintenancePage() {
             orgId={orgId}
             properties={properties}
             onClose={() => setShowModal(false)}
-            onLogged={() => { setShowModal(false); load() }}
+            onLogged={() => { setShowModal(false); refreshIssues() }}
           />
         )}
       </AnimatePresence>

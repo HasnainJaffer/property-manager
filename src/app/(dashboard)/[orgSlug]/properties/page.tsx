@@ -1,39 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { IconPlus, IconX, IconBuilding } from '@tabler/icons-react'
+import { IconX, IconBuilding } from '@tabler/icons-react'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface PropertyUnit {
-  id: string
-  status: string
-  target_rent: number | null
-}
-
-interface PropertyRow {
-  id: string
-  name: string
-  address_line1: string
-  city: string
-  postcode: string
-  purchase_price: number | null
-  purchase_date: string | null
-  current_valuation: number | null
-  mortgage_monthly: number | null
-  property_types: { label: string } | null
-  units: PropertyUnit[]
-}
-
-interface PropertyType {
-  id: string
-  label: string
-}
+import { useOrgData, type PropertyRow, type PropertyType } from '@/lib/org-data-context'
+import CrystalSelect from '@/components/ui/CrystalSelect'
+import CrystalDatePicker from '@/components/ui/CrystalDatePicker'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -171,31 +146,18 @@ function PropertyCard({ property }: { property: PropertyRow }) {
 
 // ─── Add Property Modal ───────────────────────────────────────────────────────
 
-function AddPropertyModal({ orgId, onClose, onAdded }: {
+function AddPropertyModal({ orgId, propertyTypes, onClose, onAdded }: {
   orgId: string
+  propertyTypes: PropertyType[]
   onClose: () => void
   onAdded: () => void
 }) {
-  const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([])
   const [form, setForm] = useState({
     name: '', property_type_id: '', address_line1: '',
     city: '', postcode: '', purchase_price: '', purchase_date: '', mortgage_monthly: '',
   })
   const [error, setError]     = useState<string | null>(null)
   const [saving, setSaving]   = useState(false)
-
-  useEffect(() => {
-    createClient()
-      .from('property_types')
-      .select('id, label')
-      .order('sort_order')
-      .then(({ data }) => {
-        if (data?.length) {
-          setPropertyTypes(data)
-          setForm(f => ({ ...f, property_type_id: data[0].id }))
-        }
-      })
-  }, [])
 
   function set(k: keyof typeof form, v: string) {
     setForm(f => ({ ...f, [k]: v }))
@@ -279,14 +241,12 @@ function AddPropertyModal({ orgId, onClose, onAdded }: {
 
           {/* Property type */}
           <ModalField label="Property type" required>
-            <select
-              required
-              className="crystal-select"
+            <CrystalSelect
               value={form.property_type_id}
-              onChange={e => set('property_type_id', e.target.value)}
-            >
-              {propertyTypes.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
+              onChange={v => set('property_type_id', v)}
+              options={propertyTypes.map(t => ({ value: t.id, label: t.label }))}
+              placeholder="Select type…"
+            />
           </ModalField>
 
           {/* Address */}
@@ -341,11 +301,9 @@ function AddPropertyModal({ orgId, onClose, onAdded }: {
               </PrefixInput>
             </ModalField>
             <ModalField label="Purchase date">
-              <input
-                type="date"
-                className="crystal-input"
+              <CrystalDatePicker
                 value={form.purchase_date}
-                onChange={e => set('purchase_date', e.target.value)}
+                onChange={v => set('purchase_date', v)}
               />
             </ModalField>
             <ModalField label="Mortgage/mo">
@@ -437,45 +395,8 @@ function PrefixInput({ prefix, children }: { prefix: string; children: React.Rea
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PropertiesPage() {
-  const params = useParams()
-  const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
-
-  const [orgId, setOrgId]           = useState<string | null>(null)
-  const [properties, setProperties] = useState<PropertyRow[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [showModal, setShowModal]   = useState(false)
-
-  const load = useCallback(async () => {
-    if (!orgSlug) return
-    setLoading(true)
-    const supabase = createClient()
-
-    const { data: org } = await supabase
-      .from('organisations')
-      .select('id')
-      .eq('slug', orgSlug)
-      .single()
-
-    if (!org) { setLoading(false); return }
-    setOrgId(org.id)
-
-    const { data } = await supabase
-      .from('properties')
-      .select(`
-        id, name, address_line1, city, postcode,
-        purchase_price, purchase_date, current_valuation, mortgage_monthly,
-        property_types ( label ),
-        units ( id, status, target_rent )
-      `)
-      .eq('org_id', org.id)
-      .eq('is_active', true)
-      .order('created_at', { ascending: true })
-
-    setProperties((data as unknown as PropertyRow[]) ?? [])
-    setLoading(false)
-  }, [orgSlug])
-
-  useEffect(() => { load() }, [load])
+  const { orgId, properties, propertyTypes, loading, refreshProperties } = useOrgData()
+  const [showModal, setShowModal] = useState(false)
 
   const totalUnits = properties.reduce((s, p) => s + p.units.length, 0)
   const voidUnits  = properties.reduce((s, p) => s + p.units.filter(u => u.status === 'vacant').length, 0)
@@ -545,8 +466,9 @@ export default function PropertiesPage() {
         {showModal && orgId && (
           <AddPropertyModal
             orgId={orgId}
+            propertyTypes={propertyTypes}
             onClose={() => setShowModal(false)}
-            onAdded={() => { setShowModal(false); load() }}
+            onAdded={() => { setShowModal(false); refreshProperties() }}
           />
         )}
       </AnimatePresence>

@@ -1,31 +1,25 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { IconAlertTriangle, IconX } from '@tabler/icons-react'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
+import { useOrgData, type CertRow } from '@/lib/org-data-context'
+import CrystalSelect from '@/components/ui/CrystalSelect'
+import CrystalDatePicker from '@/components/ui/CrystalDatePicker'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface CertRow {
-  id: string
-  certificate_type: string
-  issued_date: string
-  expiry_date: string | null
-  status: string
-  reference_number: string | null
-  notes: string | null
-  properties: { name: string } | null
-  units: { unit_ref: string } | null
-}
-
-interface PropertyOption {
-  id: string
-  name: string
-}
+const CERT_TYPE_OPTIONS = [
+  { value: 'gas_safety', label: 'Gas Safety Certificate' },
+  { value: 'eicr',       label: 'EICR (Electrical Installation Condition Report)' },
+  { value: 'epc',        label: 'EPC (Energy Performance Certificate)' },
+  { value: 'fire_risk',  label: 'Fire Risk Assessment' },
+  { value: 'legionella', label: 'Legionella Risk Assessment' },
+  { value: 'pat_testing',label: 'PAT Testing' },
+  { value: 'asbestos',   label: 'Asbestos Survey' },
+  { value: 'other',      label: 'Other' },
+]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -202,30 +196,34 @@ function AddCertModal({ orgId, properties, onClose, onAdded }: {
 
         <form onSubmit={handleSubmit} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <MF label="Certificate type" required>
-            <select required className="crystal-select" value={form.certificate_type} onChange={e => set('certificate_type', e.target.value)}>
-              <option value="gas_safety">Gas Safety Certificate</option>
-              <option value="eicr">EICR (Electrical Installation Condition Report)</option>
-              <option value="epc">EPC (Energy Performance Certificate)</option>
-              <option value="fire_risk">Fire Risk Assessment</option>
-              <option value="legionella">Legionella Risk Assessment</option>
-              <option value="pat_testing">PAT Testing</option>
-              <option value="asbestos">Asbestos Survey</option>
-              <option value="other">Other</option>
-            </select>
+            <CrystalSelect
+              value={form.certificate_type}
+              onChange={v => set('certificate_type', v)}
+              options={CERT_TYPE_OPTIONS}
+            />
           </MF>
 
           <MF label="Property" required>
-            <select required className="crystal-select" value={form.property_id} onChange={e => set('property_id', e.target.value)}>
-              {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <CrystalSelect
+              value={form.property_id}
+              onChange={v => set('property_id', v)}
+              options={properties.map(p => ({ value: p.id, label: p.name }))}
+              placeholder="Select property…"
+            />
           </MF>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <MF label="Issued date" required>
-              <input required type="date" className="crystal-input" value={form.issued_date} onChange={e => set('issued_date', e.target.value)} />
+              <CrystalDatePicker
+                value={form.issued_date}
+                onChange={v => set('issued_date', v)}
+              />
             </MF>
             <MF label="Expiry date">
-              <input type="date" className="crystal-input" value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)} />
+              <CrystalDatePicker
+                value={form.expiry_date}
+                onChange={v => set('expiry_date', v)}
+              />
             </MF>
           </div>
 
@@ -290,55 +288,11 @@ function MF({ label, required, children }: { label: string; required?: boolean; 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CompliancePage() {
-  const params  = useParams()
-  const orgSlug = typeof params?.orgSlug === 'string' ? params.orgSlug : ''
-
-  const [orgId, setOrgId]         = useState<string | null>(null)
-  const [certs, setCerts]         = useState<CertRow[]>([])
-  const [properties, setProperties] = useState<PropertyOption[]>([])
-  const [loading, setLoading]     = useState(true)
+  const { orgId, certs, properties, loading, refreshCerts } = useOrgData()
   const [showModal, setShowModal] = useState(false)
 
-  const load = useCallback(async () => {
-    if (!orgSlug) return
-    setLoading(true)
-    const supabase = createClient()
-
-    const { data: org } = await supabase
-      .from('organisations')
-      .select('id')
-      .eq('slug', orgSlug)
-      .single()
-
-    if (!org) { setLoading(false); return }
-    setOrgId(org.id)
-
-    const [{ data: certData }, { data: propData }] = await Promise.all([
-      supabase
-        .from('certificates')
-        .select(`
-          id, certificate_type, issued_date, expiry_date, status,
-          reference_number, notes,
-          properties ( name ),
-          units ( unit_ref )
-        `)
-        .eq('org_id', org.id)
-        .eq('is_active', true)
-        .order('expiry_date', { ascending: true, nullsFirst: false }),
-      supabase
-        .from('properties')
-        .select('id, name')
-        .eq('org_id', org.id)
-        .eq('is_active', true)
-        .order('name', { ascending: true }),
-    ])
-
-    setCerts((certData as unknown as CertRow[]) ?? [])
-    setProperties((propData as unknown as PropertyOption[]) ?? [])
-    setLoading(false)
-  }, [orgSlug])
-
-  useEffect(() => { load() }, [load])
+  // Derive property options from cached properties
+  const propertyOptions = properties.map(p => ({ id: p.id, name: p.name }))
 
   const expiredCount  = certs.filter(c => c.status === 'expired').length
   const expiringCount = certs.filter(c => c.status === 'expiring_soon').length
@@ -480,9 +434,9 @@ export default function CompliancePage() {
         {showModal && orgId && (
           <AddCertModal
             orgId={orgId}
-            properties={properties}
+            properties={propertyOptions}
             onClose={() => setShowModal(false)}
-            onAdded={() => { setShowModal(false); load() }}
+            onAdded={() => { setShowModal(false); refreshCerts() }}
           />
         )}
       </AnimatePresence>
