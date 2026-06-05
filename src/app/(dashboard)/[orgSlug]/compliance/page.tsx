@@ -21,6 +21,8 @@ const CERT_TYPE_OPTIONS = [
   { value: 'other',      label: 'Other' },
 ]
 
+interface PropertyOption { id: string; name: string }
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtDate(d: string) {
