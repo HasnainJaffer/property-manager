@@ -36,12 +36,13 @@ export async function POST(request: NextRequest) {
     if (redirectPath !== '/dashboard') {
       errorUrl.searchParams.set('next', redirectPath)
     }
-    return NextResponse.redirect(errorUrl)
+    return NextResponse.redirect(errorUrl, { status: 303 })
   }
 
-  // Browser-native form POST: the browser commits Set-Cookie headers synchronously
-  // before navigating to the redirect URL, fixing the iOS Safari cookie timing bug.
-  const response = NextResponse.redirect(new URL(redirectPath, request.url))
+  // 303 See Other converts the browser's POST into a GET for the redirect,
+  // which is the standard POST→Redirect→GET pattern. Cookies are still committed
+  // from this response before the browser issues the GET to /dashboard.
+  const response = NextResponse.redirect(new URL(redirectPath, request.url), { status: 303 })
   pendingCookies.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, options)
   })
