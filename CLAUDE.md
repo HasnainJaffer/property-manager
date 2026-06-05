@@ -60,6 +60,55 @@ Currently defined inline in `dashboard/page.tsx`. Extract to `@/lib/hooks/useCou
 ### Mock data
 All pages consume named exports from `@/lib/mock-data.ts`. The file exports typed constants that match DB schema field names exactly — use those field names when writing Supabase queries later.
 
+### Org data cache — `useOrgData()`
+All dashboard pages read live data from `OrgDataContext` (`src/lib/org-data-context.tsx`). The context is bootstrapped once in `src/app/(dashboard)/[orgSlug]/layout.tsx` and persists for the entire session. Pages **must not** fetch their own data from Supabase — they read from the hook:
+
+```typescript
+const { orgId, properties, tenants, tenancies, charges, certs, issues, members, invitations, roles, loading } = useOrgData()
+```
+
+After a mutation (insert/update/delete), call the appropriate targeted refresh instead of re-fetching everything:
+
+```typescript
+const { refreshProperties, refreshCharges, refreshCerts, refreshIssues, refreshTeam } = useOrgData()
+```
+
+Optimistic updates (status changes, cancel invite) are also handled by the context:
+
+```typescript
+const { updateIssueStatus, cancelInvite } = useOrgData()
+```
+
+The context also provides sidebar shell data (`orgName`, `orgTypeLabel`, `currentUser`) so `AppShell` never re-fetches on navigation.
+
+### `CrystalSelect` — custom dropdown
+Use instead of `<select className="crystal-select">` everywhere. Renders into a `document.body` portal (position: fixed) so it always appears above modal overflow containers. Auto-flips upward when near the bottom of the screen.
+
+```tsx
+import CrystalSelect from '@/components/ui/CrystalSelect'
+
+<CrystalSelect
+  value={form.property_id}
+  onChange={v => set('property_id', v)}
+  options={properties.map(p => ({ value: p.id, label: p.name }))}
+  placeholder="Select property…"
+/>
+```
+
+Static option arrays should be defined as module-level constants (not inline) to prevent recreation on each render.
+
+### `CrystalDatePicker` — custom calendar
+Use instead of `<input type="date" className="crystal-input">` everywhere. Same portal architecture as `CrystalSelect`. Displays dates in UK format (DD/MM/YYYY), stores in ISO format (YYYY-MM-DD). Has a Today shortcut and auto-flips upward.
+
+```tsx
+import CrystalDatePicker from '@/components/ui/CrystalDatePicker'
+
+<CrystalDatePicker
+  value={form.purchase_date}   // YYYY-MM-DD or ''
+  onChange={v => set('purchase_date', v)}
+/>
+```
+
 ---
 
 ## What We Are Building
@@ -499,7 +548,7 @@ Update this table after completing each task.
 | CLAUDE.md created and maintained | ✅ Complete |
 | UI mockup reviewed and design approved | ✅ Complete |
 | Migrations 001–004 built and running | ✅ Complete |
-| Migrations 005–007 written (need running in Supabase) | ⚠️ Written, not yet applied |
+| Migrations 005–007 written (need running in Supabase) | ✅ Complete |
 | Mock data file `/lib/mock-data.ts` | ✅ Complete |
 | Sidebar component | ✅ Complete |
 | Mobile slide-out menu (`StaggeredMenu.tsx`) | ❌ Deleted — removed entirely this session |
@@ -522,11 +571,17 @@ Update this table after completing each task.
 | Invite acceptance API (`/api/team/invite/accept`) | ✅ Complete |
 | Invite page (`/invite/[token]`) — server + client components | ✅ Complete |
 | Login/signup `?next=` redirect param support | ✅ Complete |
-| iOS Safari login bug | ❌ Unresolved — see Known Issues |
-| Supabase auth integration | ✅ Complete (desktop) |
+| Login loop bug (Vercel + iOS Safari) | ✅ Fixed — native form POST + 303 redirect |
+| Login speed (org slug resolved in route handler) | ✅ Fixed — skips /dashboard relay, 2 fewer Supabase calls |
+| Supabase auth integration | ✅ Complete (all browsers + Vercel) |
+| Org data caching — `OrgDataProvider` + `layout.tsx` | ✅ Complete — single fetch on entry, instant tab switching |
+| Sidebar flicker on tab switch | ✅ Fixed — shell data in context, AppShell no longer re-fetches |
+| `CrystalSelect` — custom dropdown component | ✅ Complete — replaces all native `<select>` in modals |
+| `CrystalDatePicker` — custom calendar component | ✅ Complete — replaces all native `<input type="date">` in modals |
 | Wire up live badge counts in AppShell | 🔜 Pending |
 | Replace mock data in Dashboard page with real Supabase queries | 🔜 Pending |
-| Deploy to Vercel | 🔜 Pending — user wants to deploy for beta testers |
+| Settings page | 🔜 Pending |
+| Deploy to Vercel | ✅ Live at https://property-manager-orpin.vercel.app |
 
 ---
 
@@ -641,9 +696,9 @@ Migrations must be run in order. Never skip. Never run out of sequence.
 | `002_properties.sql` | ✅ Complete & running in Supabase | property_types, properties, unit_types, amenities, units, unit_amenities |
 | `003_tenants.sql` | ✅ Complete & running in Supabase | tenants (Right to Rent tracking), guarantors, tenant_references, tenant_documents |
 | `004_tenancies.sql` | ✅ Complete & running in Supabase | tenancies, tenancy_tenants, tenancy_renewals, tenancy_terminations, tenancy_documents |
-| `005_rent.sql` | ⚠️ Written, run in Supabase before using Rent Ledger page | rent_schedules, charges, payments, payment_allocations, security_deposits, arrears_log |
-| `006_maintenance.sql` | ⚠️ Written, run in Supabase before using Maintenance page | issues, work_orders, work_order_notes, vendors |
-| `007_compliance.sql` | ⚠️ Written, run in Supabase before using Compliance page | certificates, hmo_licences, inspections, inspection_items |
+| `005_rent.sql` | ✅ Complete & running in Supabase | rent_schedules, charges, payments, payment_allocations, security_deposits, arrears_log |
+| `006_maintenance.sql` | ✅ Complete & running in Supabase | issues, work_orders, work_order_notes, vendors |
+| `007_compliance.sql` | ✅ Complete & running in Supabase | certificates, hmo_licences, inspections, inspection_items |
 | `008_tasks.sql` | 🔜 Pending | tasks, task_assignments |
 | `009_documents.sql` | 🔜 Pending | documents (polymorphic — links to any entity) |
 | `010_notifications.sql` | 🔜 Pending | notifications, audit_log |
@@ -736,9 +791,9 @@ Migrations must be run in order. Never skip. Never run out of sequence.
 ### ✅ Maintenance page — Crystal Kanban board (real Supabase data)
 - 4-column Kanban: Open (rose), Scheduled (indigo), In Progress (amber), Completed (mint)
 - `IssueCard`: left border coloured by priority, glassmorphism card, `layoutId={issue.id}` for Framer Motion shared-layout animation on status change
-- `StatusDropdown`: "Move" button with AnimatePresence dropdown; optimistic UI update + `supabase.from('issues').update({ status })`
+- `StatusDropdown`: "Move" button with AnimatePresence dropdown; optimistic UI update via `updateIssueStatus()` from `useOrgData()`
 - `KanbanColumn`: stagger variants, empty dashed placeholder when no cards
-- `LogIssueModal`: Crystal modal with `.crystal-input`, `.crystal-select`, indigo gradient submit
+- `LogIssueModal`: uses `CrystalSelect` and `CrystalDatePicker`
 
 ### ❌ StaggeredMenu (mobile sidebar) — DELETED this session
 - The mobile hamburger menu and `StaggeredMenu.tsx` component have been completely removed
@@ -768,18 +823,61 @@ Migrations must be run in order. Never skip. Never run out of sequence.
 - **`/invite/[token]/InviteAcceptCard.tsx`** — Client component; checks `supabase.auth.getUser()` on mount; authenticated → "Accept invitation" button → POST accept API → redirect to org dashboard; unauthenticated → "Sign in to accept" (`/login?next=/invite/[token]`) + "Create account" (`/signup?next=/invite/[token]`)
 - **Resend free tier note**: `from: 'PropFlow <onboarding@resend.dev>'` only delivers to the Resend account owner's email in development. For sending to any email, a custom verified domain must be configured in Resend and the `from` address updated.
 
-### ⚠️ `005_rent.sql` — Written, needs to be run in Supabase
+### ✅ `005_rent.sql` — Complete & running in Supabase
 - `rent_schedules`, `charges`, `payments`, `payment_allocations`, `arrears_log`
 - `charges.paid_amount` stored/denormalised; trigger `refresh_charge_paid_amount()` recomputes after any `payment_allocations` INSERT/UPDATE/DELETE, auto-sets charge status
 - `sync_charge_org_id()` and `sync_payment_org_id()` triggers
 
-### ⚠️ `006_maintenance.sql` — Written, needs to be run in Supabase
+### ✅ `006_maintenance.sql` — Complete & running in Supabase
 - `vendors`, `issues`, `work_orders`, `work_order_notes`
 - `issues.priority`: emergency/urgent/high/medium/low; `issues.source`: tenant/manager/inspection/routine/other
 
-### ⚠️ `007_compliance.sql` — Written, needs to be run in Supabase
+### ✅ `007_compliance.sql` — Complete & running in Supabase
 - `certificates`, `hmo_licences`, `inspections`, `inspection_items`
 - `compute_certificate_status()` trigger: auto-sets status from expiry_date (expired/expiring_soon/valid/no_expiry); threshold = 90 days
+
+### ✅ Login bug fix — Complete (this session)
+- Root cause: `fetch()` with `redirect: 'manual'` does not commit `Set-Cookie` headers before the browser navigates, causing the middleware to see no session and redirect back to `/login`
+- Fix 1: Login form changed to native `<form method="POST" action="/api/auth/login">` — browser commits cookies synchronously before the GET to `/dashboard`
+- Fix 2: Route handler now accepts `application/x-www-form-urlencoded`, returns **303 See Other** (not 307) so the browser converts the POST to a GET on redirect
+- Fix 3: Middleware updated so `/api/auth/` routes are in `isPublic` — unauthenticated POSTs to the login handler are no longer intercepted
+
+### ✅ Login performance — Complete (this session)
+- Route handler now resolves the org slug after `signInWithPassword` and redirects directly to `/{orgSlug}/dashboard`, skipping the `/dashboard` server component relay
+- Eliminates one full HTTP round trip and 3 serial Supabase calls (org name lookup, profile query, org type) from the login critical path
+
+### ✅ Org data caching — Complete (this session)
+- `src/lib/org-data-context.tsx` — `OrgDataProvider` client component; bootstraps by resolving org slug → org id → fetches all page data in a single `Promise.all` (10 parallel Supabase queries); persists for the full session
+- `src/app/(dashboard)/[orgSlug]/layout.tsx` — wraps all org pages with `OrgDataProvider`; never re-mounts on tab navigation
+- All 7 dashboard pages (properties, tenants, tenancies, rent, compliance, maintenance, team) rewritten to read from `useOrgData()` instead of their own `useEffect`/`load` pattern
+- Rent page month switching now filters the cached charge array in memory — no network call on month change
+- Context also fetches org name, org type, and current user profile for the sidebar — eliminates the separate AppShell fetch
+
+### ✅ Sidebar flicker fix — Complete (this session)
+- `AppShell` previously rendered inside each page and re-fetched org/user data on every mount (4 serial Supabase calls per tab switch)
+- Fix: `AppShell` now reads `orgName`, `orgTypeLabel`, and `currentUser` from `useOrgData()`; the context (in the persistent layout) fetches this data once and it never changes on navigation
+- Result: sidebar org name and user info are stable across all tab switches — no flicker, no "Loading…" placeholder
+
+### ✅ `CrystalSelect` — Complete (this session)
+- `src/components/ui/CrystalSelect.tsx` — custom dropdown replacing all native `<select className="crystal-select">` elements
+- Portal-rendered into `document.body` with `position: fixed` — always appears above modal `overflow: auto` containers
+- Auto-flips upward when there is insufficient space below the trigger
+- Glassmorphism panel: `var(--surface)` + blur(20px) + deep shadow; indigo check on selected option; animated chevron
+- Trigger matches `crystal-input` styling exactly (same border, focus ring, padding)
+- Closes on outside click, Escape key, or option selection
+- All 10 `<select>` elements replaced: properties, compliance, maintenance (×4), team, rent (×2)
+
+### ✅ `CrystalDatePicker` — Complete (this session)
+- `src/components/ui/CrystalDatePicker.tsx` — custom calendar replacing all native `<input type="date">` elements
+- Same portal + auto-flip architecture as `CrystalSelect`
+- Hand-built Monday-start UK calendar grid (42-cell, 6-row layout) with prev/next month fill shown muted
+- Selected day: indigo gradient background + glow shadow; today: indigo outline ring + indigo text
+- Trigger: `display: block` with absolutely-positioned icon — height matches `crystal-input` exactly in grid layouts
+- Calendar icon in `var(--text-mute)` (previously browser-native black in dark mode)
+- Placeholder text in `var(--text-mute)` (consistent with all other inputs)
+- Display value in `var(--font-mono)` UK format (DD/MM/YYYY); stores in ISO (YYYY-MM-DD)
+- Today shortcut button at bottom of calendar
+- All 6 `<input type="date">` elements replaced: properties, compliance (issued + expiry), maintenance, rent
 
 ---
 
@@ -815,57 +913,32 @@ supabase.from('tenancies')
 
 ## Known Issues — Next Session Priorities
 
-### ❌ PRIORITY 1: iOS Safari Login Bug (Unresolved)
-**Symptom**: On iOS Safari over local WiFi (HTTP), login loops back to the login page. Fields clear as if the page refreshed. Eye button (show/hide password) also has a small touch target issue.
+### 🔜 PRIORITY 1: Replace Dashboard mock data with real Supabase queries
+The dashboard page (`/[orgSlug]/dashboard/page.tsx`) still uses hardcoded values from `mock-data.ts`. Now that `OrgDataContext` caches all org data, the dashboard should read from `useOrgData()` like all other pages:
+- Monthly rent roll: derive from `charges` (sum of amounts due this month)
+- Arrears: derive from `charges` (sum of overdue amounts)
+- Void units: derive from `properties` → `units` (count units with status `vacant`)
+- Expiring tenancies: derive from `tenancies` (count expiring within 60 days)
+- Compliance alerts panel: read from `certs` (filter expired/expiring_soon)
+- Upcoming renewals: read from `tenancies` (filter active with end_date within 90 days)
+- Overdue payments table: read from `charges` (filter overdue, join tenant/property)
 
-**Root cause**: iOS Safari defers committing `Set-Cookie` headers from `fetch` responses. The middleware checks for a session immediately after navigation — before cookies are committed — so it redirects back to `/login`.
+### 🔜 PRIORITY 2: Wire up live badge counts in AppShell
+`AppShell` passes `badges={{ rent: 0, compliance: 0 }}` hardcoded. These should be derived from the cached context data (no extra queries needed):
+- `rent` badge = `charges.filter(c => c.status === 'overdue').length`
+- `compliance` badge = `certs.filter(c => c.status === 'expired' || c.status === 'expiring_soon').length`
 
-**What has been tried**:
-1. `router.push('/dashboard') + router.refresh()` — looped
-2. `window.location.href = '/dashboard'` (client-side Supabase auth) — looped
-3. Server-side Route Handler (`/api/auth/login`) returning JSON `{ success: true }` + `window.location.href` — looped
-4. Route Handler returning `302 redirect` + `fetch` with `redirect: 'manual'` checking `res.type === 'opaqueredirect'` — **currently deployed, still looping**
+### 🔜 PRIORITY 3: Settings page
+Two cards: (1) org details form (name, type, contact email) — reads/updates `organisations` table; (2) subscription card showing current `plan` column + Upgrade button (links to Stripe Checkout later). Use `CrystalSelect` for the org type dropdown.
 
-**Current auth flow**:
-- `src/app/(auth)/login/page.tsx` — calls `fetch('/api/auth/login', { redirect: 'manual' })`
-- `src/app/api/auth/login/route.ts` — server signs in with Supabase, sets cookies on a 302 redirect response
-- `middleware.ts` — calls `supabase.auth.getUser()` to check session, redirects unauthenticated to `/login`
-- `src/app/dashboard/page.tsx` — server component that reads profile → org slug → redirects to `/[orgSlug]/dashboard`
+### 🔜 PRIORITY 4: Mobile navigation
+The mobile hamburger menu (`StaggeredMenu.tsx`) was deleted in a previous session. Mobile navigation is unaddressed. The app is currently desktop-only. A future session should design a mobile-first nav approach consistent with the Crystal design system.
 
-**Next approaches to try**:
-- Try a real HTML `<form action="/api/auth/login/redirect" method="POST">` submission (browser-native navigation, most reliable cookie timing)
-- Try adding `credentials: 'include'` to the fetch call
-- Try testing over HTTPS (use `ngrok` or deploy to Vercel) — some iOS Safari cookie behaviours only work over HTTPS
-- Check if testing over `localhost` (not IP) makes a difference (requires same device)
-
-### 🔜 PRIORITY 2: Run Migrations 005–007 in Supabase
-Before the Rent, Compliance, and Maintenance pages can show real data, these SQL files must be run in the Supabase Dashboard → SQL Editor in order:
-1. `supabase/migrations/005_rent.sql`
-2. `supabase/migrations/006_maintenance.sql`
-3. `supabase/migrations/007_compliance.sql`
-
-### 🔜 PRIORITY 3: Team page
-Table: avatar + name, role badge, email, joined date, status badge. "Invite Member" button in topbar opens a modal (email + role selector). Query `profiles` joined with `roles` filtered by org. Insert to `organisation_invitations` on invite.
-
-### 🔜 PRIORITY 4: Settings page
-Two cards: (1) org details form (name, type, contact email) — reads/updates `organisations` table; (2) subscription card showing current `plan` column + Upgrade button (links to Stripe Checkout later).
-
-### 🔜 PRIORITY 5: Wire up live badge counts in AppShell
-`AppShell` currently passes `badges={{ rent: 0, compliance: 0 }}` hardcoded. These should be fetched server-side or via a single lightweight query:
-- `rent` badge = count of charges where `status = 'overdue'` for this org
-- `compliance` badge = count of certificates where `status IN ('expired', 'expiring_soon')` for this org
-
-### 🔜 PRIORITY 6: Replace Dashboard mock data with real Supabase queries
-The dashboard page (`/[orgSlug]/dashboard/page.tsx`) still uses hardcoded values from `mock-data.ts`. Wire up:
-- Monthly rent roll: sum of charges due this month
-- Arrears: sum of overdue charges
-- Void units: count of units with no active tenancy
-- Expiring tenancies: count expiring within 60 days
-- Compliance alerts panel: real cert data
-- Upcoming renewals: real tenancy data
-
-### 🔜 PRIORITY 7: Auth invite flow
-`/invite/[token]` page — validates token from `organisation_invitations`, shows org name and role, prompts sign up or log in. On completion, creates `profiles` + `organisation_members` rows and marks invitation accepted.
+### 🔜 PRIORITY 5: Migrations 008–011
+- `008_tasks.sql` — tasks, task_assignments (needed for staff/cleaner role task view)
+- `009_documents.sql` — documents (polymorphic, links to any entity)
+- `010_notifications.sql` — notifications, audit_log
+- `011_reporting.sql` — occupancy_snapshots, financial_summaries, portfolio_valuations
 
 ---
 
