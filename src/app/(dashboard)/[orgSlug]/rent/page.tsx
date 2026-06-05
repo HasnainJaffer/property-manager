@@ -8,6 +8,7 @@ import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgData, type ChargeRow } from '@/lib/org-data-context'
 import CrystalSelect from '@/components/ui/CrystalSelect'
+import CrystalDatePicker from '@/components/ui/CrystalDatePicker'
 
 const PAYMENT_METHOD_OPTIONS = [
   { value: 'bank_transfer',  label: 'Bank Transfer' },
@@ -411,7 +412,10 @@ function RecordPaymentModal({ orgId, tenancies, onClose, onRecorded }: {
               </div>
             </ModalField>
             <ModalField label="Date" required>
-              <input required type="date" className="crystal-input" value={form.payment_date} onChange={e => set('payment_date', e.target.value)} />
+              <CrystalDatePicker
+                value={form.payment_date}
+                onChange={v => set('payment_date', v)}
+              />
             </ModalField>
           </div>
 

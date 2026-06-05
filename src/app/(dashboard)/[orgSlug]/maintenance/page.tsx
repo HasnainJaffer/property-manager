@@ -8,6 +8,7 @@ import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgData, type IssueRow } from '@/lib/org-data-context'
 import CrystalSelect from '@/components/ui/CrystalSelect'
+import CrystalDatePicker from '@/components/ui/CrystalDatePicker'
 
 const PRIORITY_OPTIONS = [
   { value: 'emergency', label: 'Emergency' },
@@ -483,7 +484,10 @@ function LogIssueModal({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <MF label="Reported date">
-              <input type="date" value={form.reported_date} onChange={e => set('reported_date', e.target.value)} className="crystal-input" />
+              <CrystalDatePicker
+                value={form.reported_date}
+                onChange={v => set('reported_date', v)}
+              />
             </MF>
             <MF label="Est. cost">
               <div style={{ position: 'relative' }}>

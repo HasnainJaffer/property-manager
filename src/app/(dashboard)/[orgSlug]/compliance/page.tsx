@@ -8,6 +8,7 @@ import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgData, type CertRow } from '@/lib/org-data-context'
 import CrystalSelect from '@/components/ui/CrystalSelect'
+import CrystalDatePicker from '@/components/ui/CrystalDatePicker'
 
 const CERT_TYPE_OPTIONS = [
   { value: 'gas_safety', label: 'Gas Safety Certificate' },
@@ -213,10 +214,16 @@ function AddCertModal({ orgId, properties, onClose, onAdded }: {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <MF label="Issued date" required>
-              <input required type="date" className="crystal-input" value={form.issued_date} onChange={e => set('issued_date', e.target.value)} />
+              <CrystalDatePicker
+                value={form.issued_date}
+                onChange={v => set('issued_date', v)}
+              />
             </MF>
             <MF label="Expiry date">
-              <input type="date" className="crystal-input" value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)} />
+              <CrystalDatePicker
+                value={form.expiry_date}
+                onChange={v => set('expiry_date', v)}
+              />
             </MF>
           </div>
 

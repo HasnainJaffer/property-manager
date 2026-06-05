@@ -8,6 +8,7 @@ import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgData, type PropertyRow, type PropertyType } from '@/lib/org-data-context'
 import CrystalSelect from '@/components/ui/CrystalSelect'
+import CrystalDatePicker from '@/components/ui/CrystalDatePicker'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -300,11 +301,9 @@ function AddPropertyModal({ orgId, propertyTypes, onClose, onAdded }: {
               </PrefixInput>
             </ModalField>
             <ModalField label="Purchase date">
-              <input
-                type="date"
-                className="crystal-input"
+              <CrystalDatePicker
                 value={form.purchase_date}
-                onChange={e => set('purchase_date', e.target.value)}
+                onChange={v => set('purchase_date', v)}
               />
             </ModalField>
             <ModalField label="Mortgage/mo">
