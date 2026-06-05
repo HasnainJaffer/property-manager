@@ -3,10 +3,12 @@ import { type CookieOptions } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
-  const { email, password, next } = await request.json()
+  const formData = await request.formData()
+  const email = (formData.get('email') ?? '') as string
+  const password = (formData.get('password') ?? '') as string
+  const next = formData.get('next') as string | null
   const redirectPath = (typeof next === 'string' && next.startsWith('/')) ? next : '/dashboard'
 
-  // Collect cookies set during auth so we can apply them to the response
   const pendingCookies: Array<{ name: string; value: string; options: CookieOptions }> = []
 
   const supabase = createServerClient(
@@ -29,12 +31,16 @@ export async function POST(request: NextRequest) {
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 })
+    const errorUrl = new URL('/login', request.url)
+    errorUrl.searchParams.set('error', 'Invalid email or password')
+    if (redirectPath !== '/dashboard') {
+      errorUrl.searchParams.set('next', redirectPath)
+    }
+    return NextResponse.redirect(errorUrl)
   }
 
-  // Redirect to /dashboard so the browser commits Set-Cookie headers as part of
-  // a navigation response — this is synchronous on all browsers including iOS Safari,
-  // unlike cookies from a JSON fetch response which Safari can defer.
+  // Browser-native form POST: the browser commits Set-Cookie headers synchronously
+  // before navigating to the redirect URL, fixing the iOS Safari cookie timing bug.
   const response = NextResponse.redirect(new URL(redirectPath, request.url))
   pendingCookies.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, options)
