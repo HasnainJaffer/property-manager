@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/lib/types'
+import LoadingScreen from '@/components/ui/LoadingScreen'
 
 // ─── Exported types (pages import from here instead of redefining) ─────────────
 
@@ -406,6 +407,16 @@ export function OrgDataProvider({ children }: { children: React.ReactNode }) {
     setInvitations(prev => prev.filter(i => i.id !== id))
     await createClient().from('invitations').delete().eq('id', id)
   }, [])
+
+  // Cycle through loading messages while the bootstrap is running
+  const [loadingMsg, setLoadingMsg] = useState('Getting your data…')
+  useEffect(() => {
+    if (!loading) { setLoadingMsg('Getting your data…'); return }
+    const t = setTimeout(() => setLoadingMsg('Loading application…'), 1800)
+    return () => clearTimeout(t)
+  }, [loading])
+
+  if (loading) return <LoadingScreen message={loadingMsg} />
 
   return (
     <OrgDataContext.Provider value={{

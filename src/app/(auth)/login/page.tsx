@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { IconEye, IconEyeOff } from '@tabler/icons-react'
+import LoadingScreen from '@/components/ui/LoadingScreen'
 
 function LoginForm() {
   const searchParams = useSearchParams()
@@ -12,6 +13,15 @@ function LoginForm() {
   const errorParam = searchParams.get('error')
 
   const [showPassword, setShowPassword] = useState(false)
+  const [submitting,   setSubmitting]   = useState(false)
+
+  // Called on native form submit — does NOT prevent default, so the form still
+  // POSTs natively. We just flip the loading flag for the visual overlay.
+  function handleSubmit() {
+    setSubmitting(true)
+  }
+
+  if (submitting) return <LoadingScreen message="Authenticating…" />
 
   return (
     <motion.div
@@ -54,7 +64,7 @@ function LoginForm() {
           Welcome back to your portfolio
         </p>
 
-        <form method="POST" action="/api/auth/login" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form method="POST" action="/api/auth/login" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
           {/* Pass the ?next redirect through the form */}
           <input type="hidden" name="next" value={next} />
