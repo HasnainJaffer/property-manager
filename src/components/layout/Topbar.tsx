@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { IconBell, IconSearch, IconSun, IconMoon, IconMenu2 } from '@tabler/icons-react'
+import { IconBell, IconSearch, IconSun, IconMoon, IconMenu2, IconPlus } from '@tabler/icons-react'
 
 interface TopbarAction {
   label: string
@@ -152,8 +152,8 @@ export default function Topbar({ title, subtitle, action, onMenuOpen }: TopbarPr
               onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
               onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
             >
-              {/* Mobile: "+" icon */}
-              <span className="flex md:hidden" style={{ fontSize: 20, lineHeight: 1, fontWeight: 300 }}>+</span>
+              {/* Mobile: plus icon */}
+              <IconPlus size={16} strokeWidth={2.2} className="flex md:hidden" />
               {/* Desktop: full label */}
               <span className="hidden md:inline">{action.label}</span>
             </button>
