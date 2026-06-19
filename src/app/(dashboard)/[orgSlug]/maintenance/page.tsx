@@ -70,8 +70,10 @@ function sourceLabel(source: string): string {
 
 // ─── Animations ───────────────────────────────────────────────────────────────
 
-const colStagger = { visible: { transition: { staggerChildren: 0.06 } } }
-const cardAnim   = { hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0, transition: { duration: 0.18 } } }
+const colStagger  = { visible: { transition: { staggerChildren: 0.06 } } }
+const cardAnim    = { hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0, transition: { duration: 0.18 } } }
+const mobileStagger = { visible: { transition: { staggerChildren: 0.05 } } }
+const mobileCard    = { hidden: { opacity: 0, y: 5 }, visible: { opacity: 1, y: 0, transition: { duration: 0.15 } } }
 
 // ─── Priority badge ───────────────────────────────────────────────────────────
 
@@ -246,6 +248,62 @@ function IssueCard({
           <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
             £{issue.estimated_cost.toLocaleString('en-GB')}
           </span>
+        </p>
+      )}
+    </motion.div>
+  )
+}
+
+// ─── Mobile issue card (no layoutId — avoids Framer Motion conflicts) ────────
+
+function MobileIssueCard({
+  issue,
+  onStatusChange,
+}: {
+  issue: IssueRow
+  onStatusChange: (id: string, status: string) => void
+}) {
+  const accent = priorityAccent(issue.priority)
+  return (
+    <motion.div
+      variants={mobileCard}
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderLeft: `3px solid ${accent}`,
+        borderRadius: 10,
+        padding: '12px 14px',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 12px -4px rgba(0,0,0,0.22)',
+      }}
+    >
+      <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: 'var(--text)', lineHeight: 1.35 }}>
+        {issue.title}
+      </p>
+      {issue.source && (
+        <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-mute)' }}>
+          {sourceLabel(issue.source)}
+        </p>
+      )}
+      {issue.properties?.name && (
+        <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'var(--text-dim)' }}>
+          {issue.properties.name}
+          {issue.units?.unit_ref && (
+            <span style={{ color: 'var(--text-mute)', marginLeft: 4 }}>· {issue.units.unit_ref}</span>
+          )}
+        </p>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <PriorityBadge priority={issue.priority} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-mute)' }}>
+            {fmtDate(issue.reported_date)}
+          </span>
+        </div>
+        <StatusDropdown issueId={issue.id} current={issue.status} onChange={onStatusChange} />
+      </div>
+      {issue.estimated_cost != null && (
+        <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--text-mute)' }}>
+          Est. <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>£{issue.estimated_cost.toLocaleString('en-GB')}</span>
         </p>
       )}
     </motion.div>
@@ -551,7 +609,8 @@ function LogIssueModal({
 
 export default function MaintenancePage() {
   const { orgId, issues, properties: ctxProperties, loading, refreshIssues, updateIssueStatus } = useOrgData()
-  const [showModal, setShowModal] = useState(false)
+  const [showModal,    setShowModal]    = useState(false)
+  const [selectedTab,  setSelectedTab]  = useState('open')
 
   // Derive property options with units from cached properties
   const properties: PropertyOption[] = ctxProperties.map(p => ({
@@ -587,16 +646,118 @@ export default function MaintenancePage() {
               <p style={{ fontSize: 12, color: 'var(--text-mute)' }}>Loading issues…</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-              {COLUMNS.map(col => (
-                <KanbanColumn
-                  key={col.key}
-                  col={col}
-                  issues={issuesByColumn[col.key] ?? []}
-                  onStatusChange={handleStatusChange}
-                />
-              ))}
-            </div>
+            <>
+              {/* ── Desktop: Kanban board ──────────────────────────────── */}
+              <div className="hidden md:flex" style={{ gap: 16, alignItems: 'flex-start' }}>
+                {COLUMNS.map(col => (
+                  <KanbanColumn
+                    key={col.key}
+                    col={col}
+                    issues={issuesByColumn[col.key] ?? []}
+                    onStatusChange={handleStatusChange}
+                  />
+                ))}
+              </div>
+
+              {/* ── Mobile: Tab bar + single-column list ──────────────── */}
+              <div className="flex md:hidden flex-col" style={{ gap: 12 }}>
+
+                {/* Tab bar */}
+                <div style={{
+                  display: 'flex', gap: 4, padding: 4,
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 12,
+                }}>
+                  {COLUMNS.map(col => {
+                    const count    = issuesByColumn[col.key]?.length ?? 0
+                    const isActive = selectedTab === col.key
+                    return (
+                      <button
+                        key={col.key}
+                        type="button"
+                        onClick={() => setSelectedTab(col.key)}
+                        style={{
+                          flex: 1, position: 'relative',
+                          padding: '7px 2px', borderRadius: 8,
+                          border: 'none', cursor: 'pointer',
+                          background: 'transparent',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                        }}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="mobile-tab-active"
+                            style={{
+                              position: 'absolute', inset: 0, borderRadius: 8,
+                              background: 'var(--surface-3)',
+                              border: '1px solid var(--border-2)',
+                            }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                          />
+                        )}
+                        <span style={{
+                          position: 'relative', zIndex: 1,
+                          fontSize: 10.5, fontWeight: isActive ? 600 : 400,
+                          color: isActive ? 'var(--text)' : 'var(--text-mute)',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {col.label}
+                        </span>
+                        <span style={{
+                          position: 'relative', zIndex: 1,
+                          fontSize: 10, fontWeight: 600,
+                          padding: '1px 6px', borderRadius: 5,
+                          background: isActive && count > 0 ? `${col.accent}22` : 'var(--surface-2)',
+                          color: isActive && count > 0 ? col.accent : 'var(--text-mute)',
+                          border: isActive && count > 0 ? `1px solid ${col.accent}44` : '1px solid var(--border)',
+                        }}>
+                          {count}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Issue list for selected tab */}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={selectedTab}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.14 }}
+                    variants={mobileStagger}
+                  >
+                    {(issuesByColumn[selectedTab] ?? []).length === 0 ? (
+                      <div style={{
+                        border: '1px dashed var(--border)', borderRadius: 10,
+                        padding: '36px 16px', textAlign: 'center',
+                      }}>
+                        <p style={{ fontSize: 12, color: 'var(--text-mute)', margin: 0 }}>
+                          No {COLUMNS.find(c => c.key === selectedTab)?.label.toLowerCase()} issues
+                        </p>
+                      </div>
+                    ) : (
+                      <motion.div
+                        variants={mobileStagger}
+                        initial="hidden"
+                        animate="visible"
+                        style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                      >
+                        {(issuesByColumn[selectedTab] ?? []).map(issue => (
+                          <MobileIssueCard
+                            key={issue.id}
+                            issue={issue}
+                            onStatusChange={handleStatusChange}
+                          />
+                        ))}
+                      </motion.div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+
+              </div>
+            </>
           )}
 
         </PageWrapper>
