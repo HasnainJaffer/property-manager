@@ -689,8 +689,8 @@ export default function MaintenancePage() {
                             layoutId="mobile-tab-active"
                             style={{
                               position: 'absolute', inset: 0, borderRadius: 8,
-                              background: 'var(--surface-3)',
-                              border: '1px solid var(--border-2)',
+                              background: 'var(--surface-2)',
+                              border: `1.5px solid ${col.accent}`,
                             }}
                             transition={{ type: 'spring', stiffness: 500, damping: 40 }}
                           />
