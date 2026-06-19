@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { usePathname, useParams } from 'next/navigation'
 import Topbar from './Topbar'
 import Sidebar from './Sidebar'
+import MobileDrawer from './MobileDrawer'
 import { useOrgData } from '@/lib/org-data-context'
 
 interface AppShellAction {
@@ -21,6 +23,7 @@ export default function AppShell({ children, title, subtitle, action }: AppShell
   const { orgSlug, orgName, orgTypeLabel, currentUser, charges, certs } = useOrgData()
   const pathname = usePathname()
   const params   = useParams()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const slug         = (typeof params?.orgSlug === 'string' ? params.orgSlug : '') || orgSlug
   const segments     = pathname.split('/').filter(Boolean)
@@ -50,6 +53,12 @@ export default function AppShell({ children, title, subtitle, action }: AppShell
 
   return (
     <div style={{ position: 'relative', height: '100%', overflow: 'hidden', background: 'var(--bg)' }}>
+
+      <MobileDrawer
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        {...sidebarProps}
+      />
 
       {/* Ambient gradient blobs — Crystal aesthetic */}
       <div
@@ -91,6 +100,7 @@ export default function AppShell({ children, title, subtitle, action }: AppShell
               title={title}
               subtitle={subtitle}
               action={action}
+              onMenuOpen={() => setMobileMenuOpen(true)}
             />
             <div style={{ padding: '0 28px 48px' }}>
               {children}

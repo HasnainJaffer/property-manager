@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { IconBell, IconSearch, IconSun, IconMoon } from '@tabler/icons-react'
+import { IconBell, IconSearch, IconSun, IconMoon, IconMenu2 } from '@tabler/icons-react'
 
 interface TopbarAction {
   label: string
@@ -12,9 +12,10 @@ interface TopbarProps {
   title: string
   subtitle: string
   action?: TopbarAction
+  onMenuOpen?: () => void
 }
 
-export default function Topbar({ title, subtitle, action }: TopbarProps) {
+export default function Topbar({ title, subtitle, action, onMenuOpen }: TopbarProps) {
   const [isDark, setIsDark] = useState(true)
 
   useEffect(() => {
@@ -44,8 +45,28 @@ export default function Topbar({ title, subtitle, action }: TopbarProps) {
       gap: 16,
     }}>
 
-      {/* Left — title + subtitle */}
+      {/* Left — hamburger (mobile) + title + subtitle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+
+        {/* Hamburger — mobile only */}
+        <button
+          type="button"
+          onClick={onMenuOpen}
+          aria-label="Open menu"
+          className="flex md:hidden"
+          style={{
+            width: 34, height: 34, borderRadius: 8, flexShrink: 0,
+            alignItems: 'center', justifyContent: 'center',
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            color: 'var(--text-dim)', cursor: 'pointer',
+            transition: 'color .15s, border-color .15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+        >
+          <IconMenu2 size={16} strokeWidth={1.75} />
+        </button>
+
         <div style={{ minWidth: 0 }}>
           <h1 style={{ fontSize: 19, fontWeight: 600, color: 'var(--text)', lineHeight: 1.2, margin: 0 }}>
             {title}

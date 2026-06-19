@@ -551,7 +551,7 @@ Update this table after completing each task.
 | Migrations 005–007 written (need running in Supabase) | ✅ Complete |
 | Mock data file `/lib/mock-data.ts` | ✅ Complete |
 | Sidebar component | ✅ Complete |
-| Mobile slide-out menu (`StaggeredMenu.tsx`) | ❌ Deleted — removed entirely this session |
+| Mobile slide-out menu (`MobileDrawer.tsx`) | ✅ Complete — slide-in drawer from left, spring animation, backdrop |
 | Topbar component | ✅ Complete |
 | PageWrapper component | ✅ Complete |
 | AppShell layout | ✅ Complete |
@@ -922,10 +922,7 @@ supabase.from('tenancies')
 
 ## Known Issues — Next Session Priorities
 
-### 🔜 PRIORITY 1: Mobile navigation
-The mobile hamburger menu (`StaggeredMenu.tsx`) was deleted in a previous session. Mobile navigation is unaddressed. The app is currently desktop-only. A future session should design a mobile-first nav approach consistent with the Crystal design system.
-
-### 🔜 PRIORITY 2: Migrations 008–011
+### 🔜 PRIORITY 1: Migrations 008–011
 - `008_tasks.sql` — tasks, task_assignments (needed for staff/cleaner role task view)
 - `009_documents.sql` — documents (polymorphic, links to any entity)
 - `010_notifications.sql` — notifications, audit_log
