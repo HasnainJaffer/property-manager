@@ -582,6 +582,11 @@ Update this table after completing each task.
 | Replace mock data in Dashboard page with real Supabase queries | ✅ Complete |
 | Settings page | ✅ Complete |
 | Deploy to Vercel | ✅ Live at https://property-manager-orpin.vercel.app |
+| Mobile topbar layout — hamburger inline with title, subtitle below, "+" icon on action button | ✅ Complete |
+| Mobile performance — disable backdrop-filter on mobile, hide ambient blobs | ✅ Complete |
+| Mobile portal fix — CrystalSelect and CrystalDatePicker solid background on mobile | ✅ Complete |
+| Maintenance page — mobile tab layout (Open / Scheduled / In Progress / Completed) | ✅ Complete |
+| Compliance page — mobile card layout with eye button + detail modal | ✅ Complete |
 
 ---
 
@@ -795,10 +800,52 @@ Migrations must be run in order. Never skip. Never run out of sequence.
 - `KanbanColumn`: stagger variants, empty dashed placeholder when no cards
 - `LogIssueModal`: uses `CrystalSelect` and `CrystalDatePicker`
 
-### ❌ StaggeredMenu (mobile sidebar) — DELETED this session
-- The mobile hamburger menu and `StaggeredMenu.tsx` component have been completely removed
-- `AppShell.tsx` and `Topbar.tsx` have been cleaned up — no remnants remain
-- Mobile navigation is a known issue to address separately in a future session
+### ✅ `MobileDrawer.tsx` — Complete
+- `src/components/layout/MobileDrawer.tsx` — slide-in drawer from left, replaces the old `StaggeredMenu.tsx` (which has been fully deleted)
+- Slides in from `x: -288 → 0` with spring animation; backdrop `rgba(0,0,0,0.65)` + `blur(3px)`, closes on tap outside or Escape
+- Same nav sections and badge counts as the desktop Sidebar — defined locally, no shared abstraction
+- Body scroll locked while open; brand mark, org card, user profile, and sign-out button all included
+- `AppShell.tsx` controls open state via `mobileMenuOpen` / `setMobileMenuOpen`; `Topbar.tsx` fires `onMenuOpen` prop
+
+### ✅ Mobile topbar layout — Complete
+- `Topbar.tsx` rewritten to a two-row layout on mobile:
+  - Row 1: hamburger button (`className="flex md:hidden"`) + page title + right-side icon buttons
+  - Row 2: subtitle on its own line (always full-width)
+- Action button is square (34×34px) on mobile showing `<IconPlus>`, and wide with text label on desktop
+  - `className="w-[34px] md:w-auto md:px-[14px]"` on the button
+  - `<IconPlus className="flex md:hidden" />` / `<span className="hidden md:inline">{action.label}</span>`
+- Hamburger and notification/theme buttons all share the same `iconBtnStyle` so they are visually consistent
+
+### ✅ Mobile performance optimisation — Complete
+- Root cause of sluggishness: `backdrop-filter: blur()` is GPU-compositing-expensive on mobile (5–10× desktop cost)
+- Fix in `src/app/globals.css` — media query strips all blur at ≤768px:
+  ```css
+  @media (max-width: 768px) {
+    * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+    .crystal-card { background: rgba(255,255,255,0.07) !important; }
+    .crystal-modal-overlay { background: rgba(0,0,0,0.72) !important; }
+    [data-cs-portal], [data-cdp-portal] { background: var(--bg) !important; border-color: var(--border-2) !important; }
+  }
+  ```
+- Ambient gradient blobs (`filter: blur(80px)`) hidden on mobile with `className="hidden md:block"` in `AppShell.tsx`
+- Result: navigation and modal open are near-instant on mobile
+
+### ✅ Maintenance page — mobile tab layout — Complete
+- Desktop Kanban board (`hidden md:flex`) is unchanged — 4 columns with `IssueCard` and `layoutId` animations
+- Mobile shows a horizontal tab bar (`flex md:hidden`) with 4 tabs: Open, Scheduled, In Progress, Completed
+  - Each tab shows issue count badge in the column's accent colour (rose/indigo/amber/mint)
+  - Active tab: accent-coloured border (`1.5px solid col.accent`), elevated surface background
+  - Tab label text: `var(--text)` when active, `var(--text-mute)` when inactive — never coloured
+  - Sliding active indicator via `layoutId="mobile-tab-active"` Framer Motion shared element
+- `MobileIssueCard` — separate component from desktop `IssueCard`; no `layout`/`layoutId` props to avoid Framer Motion conflicts with hidden Kanban
+- Issue list below tab bar uses stagger animation; empty state shows dashed placeholder
+
+### ✅ Compliance page — mobile card layout — Complete
+- Desktop table (`hidden md:block`) is unchanged — 6 columns, full details
+- Mobile shows a staggered list of compact `MobileCertCard` components (`flex md:hidden`):
+  - Each card: certificate type (bold), property name (muted), `StatusBadge`, eye icon button
+  - Eye button opens `CertDetailModal` via `selectedCert` state
+- `CertDetailModal` — full details in a Crystal modal: status banner, issued/expiry dates, reference number, notes; `AnimatePresence` mount/unmount animation
 
 ### ✅ Settings page — Complete (real Supabase data)
 - Two cards: Organisation Details + Subscription
@@ -927,6 +974,11 @@ supabase.from('tenancies')
 - `009_documents.sql` — documents (polymorphic, links to any entity)
 - `010_notifications.sql` — notifications, audit_log
 - `011_reporting.sql` — occupancy_snapshots, financial_summaries, portfolio_valuations
+
+### 🔜 PRIORITY 2: Remaining mobile page layouts
+- Other pages (Properties, Tenancies, Tenants, Rent Ledger, Team, Dashboard) still use desktop table/grid layouts on mobile
+- Pattern established: desktop layout in `hidden md:block`, mobile layout in `flex md:hidden`
+- Maintenance and Compliance pages are complete examples to follow
 
 ---
 
