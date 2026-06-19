@@ -60,9 +60,10 @@ export default function AppShell({ children, title, subtitle, action }: AppShell
         {...sidebarProps}
       />
 
-      {/* Ambient gradient blobs — Crystal aesthetic */}
+      {/* Ambient gradient blobs — desktop only (filter: blur is too expensive on mobile GPU) */}
       <div
         aria-hidden
+        className="hidden md:block"
         style={{
           position: 'absolute', top: -180, left: -120,
           width: 520, height: 520, borderRadius: '50%',
@@ -73,6 +74,7 @@ export default function AppShell({ children, title, subtitle, action }: AppShell
       />
       <div
         aria-hidden
+        className="hidden md:block"
         style={{
           position: 'absolute', bottom: -200, right: -160,
           width: 620, height: 620, borderRadius: '50%',
@@ -102,7 +104,7 @@ export default function AppShell({ children, title, subtitle, action }: AppShell
               action={action}
               onMenuOpen={() => setMobileMenuOpen(true)}
             />
-            <div style={{ padding: '0 28px 48px' }}>
+            <div style={{ padding: '0 16px 48px' }} className="md:px-7">
               {children}
             </div>
           </main>

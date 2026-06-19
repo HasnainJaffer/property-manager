@@ -140,6 +140,24 @@ body {
   background: currentColor;
 }
 
+/* Mobile performance — disable GPU-expensive blur compositing on all elements.
+   backdrop-filter on mobile is 5-10x more expensive than desktop and causes
+   visible lag on navigation, modal open, and scroll. */
+@media (max-width: 768px) {
+  * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  /* Compensate: give surfaces a slightly more opaque background so they
+     remain visually distinct without the blur layer. */
+  .crystal-card {
+    background: rgba(255,255,255,0.07) !important;
+  }
+  .crystal-modal-overlay {
+    background: rgba(0,0,0,0.72) !important;
+  }
+}
+
 /* Scrollbar styling */
 .crystal-scroll::-webkit-scrollbar { width: 6px; }
 .crystal-scroll::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 6px; }
