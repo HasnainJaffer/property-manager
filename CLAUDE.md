@@ -555,7 +555,7 @@ Update this table after completing each task.
 | Topbar component | ✅ Complete |
 | PageWrapper component | ✅ Complete |
 | AppShell layout | ✅ Complete |
-| Dashboard page (mock data) | ✅ Complete |
+| Dashboard page (real Supabase data) | ✅ Complete |
 | Properties page (real Supabase data) | ✅ Complete |
 | Tenancies page (real Supabase data) | ✅ Complete |
 | Tenants page (real Supabase data) | ✅ Complete |
@@ -578,8 +578,8 @@ Update this table after completing each task.
 | Sidebar flicker on tab switch | ✅ Fixed — shell data in context, AppShell no longer re-fetches |
 | `CrystalSelect` — custom dropdown component | ✅ Complete — replaces all native `<select>` in modals |
 | `CrystalDatePicker` — custom calendar component | ✅ Complete — replaces all native `<input type="date">` in modals |
-| Wire up live badge counts in AppShell | 🔜 Pending |
-| Replace mock data in Dashboard page with real Supabase queries | 🔜 Pending |
+| Wire up live badge counts in AppShell | ✅ Complete |
+| Replace mock data in Dashboard page with real Supabase queries | ✅ Complete |
 | Settings page | 🔜 Pending |
 | Deploy to Vercel | ✅ Live at https://property-manager-orpin.vercel.app |
 
@@ -748,14 +748,14 @@ Migrations must be run in order. Never skip. Never run out of sequence.
 - `sync_tenancy_org_id()` trigger
 - Full RLS policies + all indexes
 
-### ✅ Dashboard page — Complete (mock data)
-- Alert banner (slide-down animation, conditional on expired compliance certs)
-- 4 KPI cards with `useCountUp` hook animating values on mount: Monthly Rent Roll £4,850, Arrears £3,200, Void Units 1, Expiring Soon 2
-- Rent Collection panel (left): May 2026 stats (£3,250 collected of £4,850), animated progress bar, overdue payments table with stagger
-- Compliance Alerts panel (right): expired/expiring certs with coloured dot badges
-- Upcoming Renewals table (right): ten-001 (46d left, amber) + ten-003 (periodic, blue)
+### ✅ Dashboard page — Complete (real Supabase data)
+- 8 parallel Supabase queries via `Promise.all` on mount — no mock data
+- Alert banner (slide-down animation, conditional on expired/expiring compliance certs)
+- 4 KPI cards with `useCountUp` hook: Monthly Rent Roll, Arrears (rose if >0), Void Units (amber if >0), Expiring Soon (within 60 days)
+- Rent Collection panel (left): current month total/collected/outstanding stats, animated progress bar, overdue payments table (up to 5 rows) with stagger
+- Compliance Alerts panel (right): expired/expiring certs sorted by expiry date, coloured dot + pill badge
+- Upcoming Renewals table (right): active tenancies expiring ≤90 days + all periodic tenancies, sorted by end date
 - All tables use Framer Motion stagger animation on rows
-- **Still uses mock data** — needs wiring up to real Supabase queries
 
 ### ✅ Properties page — Complete (real Supabase data)
 - 2-col card grid with property name, address, type badge, occupancy bar, rent, yield, purchase date
@@ -913,28 +913,13 @@ supabase.from('tenancies')
 
 ## Known Issues — Next Session Priorities
 
-### 🔜 PRIORITY 1: Replace Dashboard mock data with real Supabase queries
-The dashboard page (`/[orgSlug]/dashboard/page.tsx`) still uses hardcoded values from `mock-data.ts`. Now that `OrgDataContext` caches all org data, the dashboard should read from `useOrgData()` like all other pages:
-- Monthly rent roll: derive from `charges` (sum of amounts due this month)
-- Arrears: derive from `charges` (sum of overdue amounts)
-- Void units: derive from `properties` → `units` (count units with status `vacant`)
-- Expiring tenancies: derive from `tenancies` (count expiring within 60 days)
-- Compliance alerts panel: read from `certs` (filter expired/expiring_soon)
-- Upcoming renewals: read from `tenancies` (filter active with end_date within 90 days)
-- Overdue payments table: read from `charges` (filter overdue, join tenant/property)
-
-### 🔜 PRIORITY 2: Wire up live badge counts in AppShell
-`AppShell` passes `badges={{ rent: 0, compliance: 0 }}` hardcoded. These should be derived from the cached context data (no extra queries needed):
-- `rent` badge = `charges.filter(c => c.status === 'overdue').length`
-- `compliance` badge = `certs.filter(c => c.status === 'expired' || c.status === 'expiring_soon').length`
-
-### 🔜 PRIORITY 3: Settings page
+### 🔜 PRIORITY 1: Settings page
 Two cards: (1) org details form (name, type, contact email) — reads/updates `organisations` table; (2) subscription card showing current `plan` column + Upgrade button (links to Stripe Checkout later). Use `CrystalSelect` for the org type dropdown.
 
-### 🔜 PRIORITY 4: Mobile navigation
+### 🔜 PRIORITY 3: Mobile navigation
 The mobile hamburger menu (`StaggeredMenu.tsx`) was deleted in a previous session. Mobile navigation is unaddressed. The app is currently desktop-only. A future session should design a mobile-first nav approach consistent with the Crystal design system.
 
-### 🔜 PRIORITY 5: Migrations 008–011
+### 🔜 PRIORITY 4: Migrations 008–011
 - `008_tasks.sql` — tasks, task_assignments (needed for staff/cleaner role task view)
 - `009_documents.sql` — documents (polymorphic, links to any entity)
 - `010_notifications.sql` — notifications, audit_log

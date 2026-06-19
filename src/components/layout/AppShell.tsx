@@ -18,7 +18,7 @@ interface AppShellProps {
 }
 
 export default function AppShell({ children, title, subtitle, action }: AppShellProps) {
-  const { orgSlug, orgName, orgTypeLabel, currentUser } = useOrgData()
+  const { orgSlug, orgName, orgTypeLabel, currentUser, charges, certs } = useOrgData()
   const pathname = usePathname()
   const params   = useParams()
 
@@ -42,7 +42,10 @@ export default function AppShell({ children, title, subtitle, action }: AppShell
     userRoleLabel: currentUser?.roleLabel ?? '',
     orgName:       orgName  || '—',
     orgTypeLabel:  orgTypeLabel || '—',
-    badges:        { rent: 0, compliance: 0 },
+    badges: {
+      rent:       charges.filter(c => c.status === 'overdue').length,
+      compliance: certs.filter(c => c.status === 'expired' || c.status === 'expiring_soon').length,
+    },
   }
 
   return (
