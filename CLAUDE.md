@@ -563,7 +563,7 @@ Update this table after completing each task.
 | Compliance page (real Supabase data) | ✅ Complete |
 | Maintenance page — Crystal Kanban board (real Supabase data) | ✅ Complete |
 | Team page — Crystal styling, invite modal via API | ✅ Complete |
-| Settings page | 🔜 Pending |
+| Settings page | ✅ Complete |
 | Auth pages — login, signup (Crystal design) | ✅ Complete |
 | Onboarding page (Crystal design) | ✅ Complete |
 | Admin Supabase client (`/lib/supabase/admin.ts`) | ✅ Complete |
@@ -580,7 +580,7 @@ Update this table after completing each task.
 | `CrystalDatePicker` — custom calendar component | ✅ Complete — replaces all native `<input type="date">` in modals |
 | Wire up live badge counts in AppShell | ✅ Complete |
 | Replace mock data in Dashboard page with real Supabase queries | ✅ Complete |
-| Settings page | 🔜 Pending |
+| Settings page | ✅ Complete |
 | Deploy to Vercel | ✅ Live at https://property-manager-orpin.vercel.app |
 
 ---
@@ -800,6 +800,15 @@ Migrations must be run in order. Never skip. Never run out of sequence.
 - `AppShell.tsx` and `Topbar.tsx` have been cleaned up — no remnants remain
 - Mobile navigation is a known issue to address separately in a future session
 
+### ✅ Settings page — Complete (real Supabase data)
+- Two cards: Organisation Details + Subscription
+- Organisation Details form: name (text input), portfolio type (`CrystalSelect` from `organisation_types` table), contact email — all fetched from `organisations` on mount
+- Save button both inline in card footer and in Topbar action; shows "Saving…" during the update and "Changes saved successfully." on success
+- Subscription card: reads `plan` column from `organisations`; shows plan badge with colour-coded styling per plan tier (free/starter/pro/enterprise)
+- Pro features teaser (checklist) shown when not on pro/enterprise
+- "Upgrade to Pro — coming soon" button (disabled placeholder for future Stripe integration)
+- Both cards animate in with staggered Framer Motion fade+slide
+
 ### ✅ Auth pages — Crystal design (login, signup, onboarding)
 - **Login page** (`/login`): Crystal glassmorphism card, conic-gradient brand mark, `.crystal-input` fields, password toggle, indigo gradient submit, `?next=` param support for post-login redirect
 - **Signup page** (`/signup`): Same Crystal styling, 2-column name grid, `AnimatePresence` for form ↔ email-sent confirmation transition, `?next=` param threads through `emailRedirectTo` to auth callback
@@ -913,13 +922,10 @@ supabase.from('tenancies')
 
 ## Known Issues — Next Session Priorities
 
-### 🔜 PRIORITY 1: Settings page
-Two cards: (1) org details form (name, type, contact email) — reads/updates `organisations` table; (2) subscription card showing current `plan` column + Upgrade button (links to Stripe Checkout later). Use `CrystalSelect` for the org type dropdown.
-
-### 🔜 PRIORITY 3: Mobile navigation
+### 🔜 PRIORITY 1: Mobile navigation
 The mobile hamburger menu (`StaggeredMenu.tsx`) was deleted in a previous session. Mobile navigation is unaddressed. The app is currently desktop-only. A future session should design a mobile-first nav approach consistent with the Crystal design system.
 
-### 🔜 PRIORITY 4: Migrations 008–011
+### 🔜 PRIORITY 2: Migrations 008–011
 - `008_tasks.sql` — tasks, task_assignments (needed for staff/cleaner role task view)
 - `009_documents.sql` — documents (polymorphic, links to any entity)
 - `010_notifications.sql` — notifications, audit_log
