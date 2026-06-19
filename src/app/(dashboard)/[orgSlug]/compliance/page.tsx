@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { IconAlertTriangle, IconX } from '@tabler/icons-react'
+import { IconAlertTriangle, IconX, IconEye } from '@tabler/icons-react'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { createClient } from '@/lib/supabase/client'
@@ -287,11 +287,166 @@ function MF({ label, required, children }: { label: string; required?: boolean; 
   )
 }
 
+// ─── Mobile cert detail modal ─────────────────────────────────────────────────
+
+function CertDetailModal({ cert, onClose }: { cert: CertRow; onClose: () => void }) {
+  const labelStyle: React.CSSProperties = {
+    fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
+    letterSpacing: '0.1em', color: 'var(--text-mute)', marginBottom: 4,
+  }
+  const valueStyle: React.CSSProperties = {
+    fontSize: 13, color: 'var(--text)', fontWeight: 500,
+  }
+
+  function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <p style={labelStyle}>{label}</p>
+        <div style={valueStyle}>{children}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <motion.div
+        className="crystal-modal-overlay"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+      />
+      <motion.div
+        className="crystal-modal crystal-scroll"
+        initial={{ opacity: 0, scale: 0.97, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.97 }}
+        transition={{ duration: 0.16 }}
+        style={{ position: 'relative', width: '100%', maxWidth: 400, maxHeight: '90vh', overflowY: 'auto' }}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px', borderBottom: '1px solid var(--border)',
+          position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 1,
+        }}>
+          <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+            {certTypeLabel(cert.certificate_type)}
+          </h2>
+          <button
+            onClick={onClose}
+            style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-mute)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <IconX size={14} strokeWidth={2} />
+          </button>
+        </div>
+
+        {/* Status banner */}
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <StatusBadge status={cert.status} />
+          {cert.expiry_date && <DaysRemainingBadge expiryDate={cert.expiry_date} />}
+        </div>
+
+        {/* Details grid */}
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+          <DetailRow label="Property">
+            <span>
+              {cert.properties?.name ?? '—'}
+              {cert.units?.unit_ref && (
+                <span style={{ color: 'var(--text-mute)', fontWeight: 400 }}> · {cert.units.unit_ref}</span>
+              )}
+            </span>
+          </DetailRow>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+            <DetailRow label="Issued date">
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+                {fmtDate(cert.issued_date)}
+              </span>
+            </DetailRow>
+            <DetailRow label="Expiry date">
+              {cert.expiry_date
+                ? <ExpiryDateCell cert={cert} />
+                : <span style={{ color: 'var(--text-mute)', fontWeight: 400, fontSize: 13 }}>No expiry</span>
+              }
+            </DetailRow>
+          </div>
+
+          {cert.reference_number && (
+            <DetailRow label="Reference number">
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+                {cert.reference_number}
+              </span>
+            </DetailRow>
+          )}
+
+          {cert.notes && (
+            <DetailRow label="Notes">
+              <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+                {cert.notes}
+              </span>
+            </DetailRow>
+          )}
+
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+// ─── Mobile cert card ─────────────────────────────────────────────────────────
+
+function MobileCertCard({ cert, onView }: { cert: CertRow; onView: () => void }) {
+  return (
+    <motion.div
+      variants={row}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '12px 14px',
+        background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10,
+        boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset',
+      }}
+    >
+      {/* Left: cert type + property */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {certTypeLabel(cert.certificate_type)}
+        </p>
+        <p style={{ margin: '3px 0 0', fontSize: 11.5, color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {cert.properties?.name ?? '—'}
+          {cert.units?.unit_ref && <span style={{ color: 'var(--text-mute)' }}> · {cert.units.unit_ref}</span>}
+        </p>
+      </div>
+
+      {/* Right: status badge + eye button */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <StatusBadge status={cert.status} />
+        <button
+          type="button"
+          onClick={onView}
+          aria-label="View certificate details"
+          style={{
+            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--surface-2)', border: '1px solid var(--border-2)',
+            color: 'var(--text-mute)', cursor: 'pointer',
+            transition: 'color .15s, border-color .15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--indigo)'; e.currentTarget.style.borderColor = 'var(--indigo)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-mute)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}
+        >
+          <IconEye size={14} strokeWidth={1.75} />
+        </button>
+      </div>
+    </motion.div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CompliancePage() {
   const { orgId, certs, properties, loading, refreshCerts } = useOrgData()
-  const [showModal, setShowModal] = useState(false)
+  const [showModal,    setShowModal]    = useState(false)
+  const [selectedCert, setSelectedCert] = useState<CertRow | null>(null)
 
   // Derive property options from cached properties
   const propertyOptions = properties.map(p => ({ id: p.id, name: p.name }))
@@ -352,7 +507,6 @@ export default function CompliancePage() {
             )}
           </AnimatePresence>
 
-          {/* ── Table ────────────────────────────────────────────────────── */}
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
               <p style={{ fontSize: 12, color: 'var(--text-mute)' }}>Loading certificates…</p>
@@ -367,67 +521,87 @@ export default function CompliancePage() {
               </div>
             </div>
           ) : (
-            <div style={{
-              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14,
-              overflow: 'hidden', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
-              boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 24px -8px rgba(0,0,0,0.28)',
-            }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    <th style={thStyle}>Certificate</th>
-                    <th style={thStyle}>Property</th>
-                    <th style={thStyle}>Issued</th>
-                    <th style={thStyle}>Expires</th>
-                    <th style={thStyle}>Days Left</th>
-                    <th style={thStyle}>Status</th>
-                  </tr>
-                </thead>
-                <motion.tbody variants={stagger} initial="hidden" animate="visible">
-                  {certs.map((cert, i) => (
-                    <motion.tr
-                      key={cert.id}
-                      variants={row}
-                      className="crystal-table-row"
-                      style={{ borderBottom: i < certs.length - 1 ? '1px solid var(--border)' : 'none' }}
-                    >
-                      <td style={{ ...tdBase }}>
-                        <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>
-                          {certTypeLabel(cert.certificate_type)}
-                        </p>
-                        {cert.reference_number && (
-                          <p style={{ margin: '2px 0 0', fontSize: 10.5, color: 'var(--text-mute)', fontFamily: 'var(--font-mono)' }}>
-                            {cert.reference_number}
+            <>
+              {/* ── Desktop: full table ──────────────────────────────────── */}
+              <div className="hidden md:block" style={{
+                background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14,
+                overflow: 'hidden',
+                boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 24px -8px rgba(0,0,0,0.28)',
+              }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      <th style={thStyle}>Certificate</th>
+                      <th style={thStyle}>Property</th>
+                      <th style={thStyle}>Issued</th>
+                      <th style={thStyle}>Expires</th>
+                      <th style={thStyle}>Days Left</th>
+                      <th style={thStyle}>Status</th>
+                    </tr>
+                  </thead>
+                  <motion.tbody variants={stagger} initial="hidden" animate="visible">
+                    {certs.map((cert, i) => (
+                      <motion.tr
+                        key={cert.id}
+                        variants={row}
+                        className="crystal-table-row"
+                        style={{ borderBottom: i < certs.length - 1 ? '1px solid var(--border)' : 'none' }}
+                      >
+                        <td style={{ ...tdBase }}>
+                          <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>
+                            {certTypeLabel(cert.certificate_type)}
                           </p>
-                        )}
-                      </td>
-                      <td style={{ ...tdBase }}>
-                        <p style={{ margin: 0, fontSize: 12, color: 'var(--text)' }}>
-                          {cert.properties?.name ?? '—'}
-                        </p>
-                        {cert.units?.unit_ref && (
-                          <p style={{ margin: '2px 0 0', fontSize: 10.5, color: 'var(--text-mute)' }}>
-                            {cert.units.unit_ref}
+                          {cert.reference_number && (
+                            <p style={{ margin: '2px 0 0', fontSize: 10.5, color: 'var(--text-mute)', fontFamily: 'var(--font-mono)' }}>
+                              {cert.reference_number}
+                            </p>
+                          )}
+                        </td>
+                        <td style={{ ...tdBase }}>
+                          <p style={{ margin: 0, fontSize: 12, color: 'var(--text)' }}>
+                            {cert.properties?.name ?? '—'}
                           </p>
-                        )}
-                      </td>
-                      <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
-                        {fmtDate(cert.issued_date)}
-                      </td>
-                      <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
-                        <ExpiryDateCell cert={cert} />
-                      </td>
-                      <td style={{ ...tdBase }}>
-                        <DaysRemainingBadge expiryDate={cert.expiry_date} />
-                      </td>
-                      <td style={{ ...tdBase }}>
-                        <StatusBadge status={cert.status} />
-                      </td>
-                    </motion.tr>
-                  ))}
-                </motion.tbody>
-              </table>
-            </div>
+                          {cert.units?.unit_ref && (
+                            <p style={{ margin: '2px 0 0', fontSize: 10.5, color: 'var(--text-mute)' }}>
+                              {cert.units.unit_ref}
+                            </p>
+                          )}
+                        </td>
+                        <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+                          {fmtDate(cert.issued_date)}
+                        </td>
+                        <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
+                          <ExpiryDateCell cert={cert} />
+                        </td>
+                        <td style={{ ...tdBase }}>
+                          <DaysRemainingBadge expiryDate={cert.expiry_date} />
+                        </td>
+                        <td style={{ ...tdBase }}>
+                          <StatusBadge status={cert.status} />
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </motion.tbody>
+                </table>
+              </div>
+
+              {/* ── Mobile: compact card list ────────────────────────────── */}
+              <motion.div
+                className="flex md:hidden flex-col"
+                style={{ gap: 8 }}
+                variants={stagger}
+                initial="hidden"
+                animate="visible"
+              >
+                {certs.map(cert => (
+                  <MobileCertCard
+                    key={cert.id}
+                    cert={cert}
+                    onView={() => setSelectedCert(cert)}
+                  />
+                ))}
+              </motion.div>
+            </>
           )}
         </PageWrapper>
       </AppShell>
@@ -439,6 +613,15 @@ export default function CompliancePage() {
             properties={propertyOptions}
             onClose={() => setShowModal(false)}
             onAdded={() => { setShowModal(false); refreshCerts() }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedCert && (
+          <CertDetailModal
+            cert={selectedCert}
+            onClose={() => setSelectedCert(null)}
           />
         )}
       </AnimatePresence>
