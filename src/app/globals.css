@@ -156,6 +156,13 @@ body {
   .crystal-modal-overlay {
     background: rgba(0,0,0,0.72) !important;
   }
+  /* Portal dropdowns and calendar — replace transparent surface with solid
+     background so they are readable without backdrop-filter blur. */
+  [data-cs-portal],
+  [data-cdp-portal] {
+    background: var(--bg) !important;
+    border-color: var(--border-2) !important;
+  }
 }
 
 /* Scrollbar styling */
