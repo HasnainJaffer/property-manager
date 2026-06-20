@@ -234,6 +234,7 @@ const org = invite.organisations as unknown as { name: string } | null  // ✅
 | `010_notifications.sql` | ✅ Running — notifications, audit_log |
 | `011_reporting.sql` | ✅ Running — occupancy_snapshots, financials, valuations |
 | `012_delete_property.sql` | ✅ Running — SECURITY DEFINER cascade delete function |
+| `013_delete_account.sql` | ✅ Running — SECURITY DEFINER account + org cascade delete, returns orphaned member IDs |
 
 ---
 
@@ -318,6 +319,11 @@ const org = invite.organisations as unknown as { name: string } | null  // ✅
 | Rent Ledger — Add Charge modal, mobile cards, bar chart | ✅ |
 | Properties — unit/property model (detail modal, per-unit CRUD) | ✅ |
 | Table header padding parity (Tenants, Tenancies, Team) | ✅ |
+| Column dividers + compact widths (Tenants, Tenancies, Compliance) | ✅ |
+| Invite acceptance — inline signup/signin form with password | ✅ |
+| Invite — accepted invites hidden from pending list | ✅ |
+| Rebrand: PropFlow → LetroFlow (all UI, emails, metadata) | ✅ |
+| Delete account — Danger Zone in Settings, cascade function, API route | ✅ |
 | Remaining mobile page layouts (Properties, Team, Dashboard) | 🔜 |
 | Stripe billing integration | 🔜 |
 
@@ -370,6 +376,51 @@ const RTR_OPTIONS = [
 ]
 ```
 Do **not** use `'passed'` or `'not_applicable'` — they violate the constraint.
+
+### Column dividers — short tick pattern (Tenants, Tenancies, Compliance tables)
+
+Faint vertical ticks between table columns using a background gradient — not a full-height border:
+
+```typescript
+const colDivider: React.CSSProperties = {
+  backgroundImage: 'linear-gradient(to bottom, transparent 15%, rgba(255,255,255,0.08) 15%, rgba(255,255,255,0.08) 85%, transparent 85%)',
+  backgroundSize: '1px 100%',
+  backgroundPosition: 'right center',
+  backgroundRepeat: 'no-repeat',
+}
+const thStyle: React.CSSProperties = { padding: '12px 12px 10px', ..., ...colDivider }
+const tdBase:  React.CSSProperties = { padding: '11px 12px', ..., ...colDivider }
+```
+
+Override with `backgroundImage: 'none'` on the last column and any column that shouldn't have a divider (e.g. the Edit action column). Add `paddingRight: 128` on `<th>` and `<td>` of columns that need extra visual separation.
+
+### Invite acceptance flow (redesigned)
+
+`/invite/[token]` shows an inline signup/signin form — no redirect to `/login` or `/signup`.
+
+- **Default (signup mode):** email (read-only), first name, last name, password, confirm password → POST `/api/team/invite/accept` with `{ token, firstName, lastName, password }` → server creates auth user via `admin.auth.admin.createUser({ email_confirm: true })`, inserts profile, marks accepted → client calls `signInWithPassword` → redirect to org dashboard.
+- **Sign-in mode (toggle):** email (read-only), password → client `signInWithPassword` → POST `/api/team/invite/accept` with `{ token }` only → server reads authenticated session, inserts profile, marks accepted → redirect.
+- `email_confirm: true` skips Supabase's email confirmation step — safe because the email was already verified by receiving the invite.
+- Do NOT pass `org_id` in `user_metadata` when creating invited users — the `handle_new_user` trigger will skip profile creation (it only fires when `org_id` is present), and the accept route creates the profile manually.
+- Accepted invitations are filtered out of the pending list via `.is('accepted_at', null)` in `OrgDataContext` — both the initial load and `refreshTeam` queries.
+
+### Delete account — cascade function pattern
+
+`/api/account/delete` (POST, auth required):
+1. Calls `supabase.rpc('delete_account_cascade', { p_user_id })` via admin client
+2. Function deletes all owned org data in FK-safe order (see migration 013), returns orphaned member `user_id[]`
+3. API calls `admin.auth.admin.deleteUser(id)` for each orphaned member
+4. API calls `admin.auth.admin.deleteUser(userId)` for the requesting user
+5. Client calls `supabase.auth.signOut()` then `router.push('/login')`
+
+FK deletion order inside `delete_account_cascade`:
+`work_orders → tenancy_terminations → tasks → inspections → hmo_licences → certificates → issues → tenancies → tenants → vendors → properties → organisations`
+
+The final `DELETE FROM organisations` cascades automatically to: `profiles`, `invitations`, `documents`, `notifications`, `audit_log`, `occupancy_snapshots`, `financial_summaries`, `arrears_log`.
+
+⚠️ Non-owner account deletion doesn't call the function — it just deletes the auth user and relies on `profiles.user_id → auth.users ON DELETE CASCADE`.
+
+The Settings page Danger Zone card shows role-appropriate warning text (`currentUser.role === 'owner'` to detect), and requires typing `DELETE` in a confirmation input before the button activates.
 
 ---
 
