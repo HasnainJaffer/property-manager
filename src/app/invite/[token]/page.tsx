@@ -21,8 +21,6 @@ export default async function InvitePage({ params }: Props) {
     .eq('token', token)
     .single()
 
-  if (inviteError) console.error('[invite page] lookup error:', inviteError.message, 'token:', token)
-
   // Fetch inviter name separately
   let inviterName = 'Someone'
   if (invite?.invited_by && invite?.org_id) {
@@ -137,7 +135,6 @@ export default async function InvitePage({ params }: Props) {
           <InviteAcceptCard
             token={token}
             orgName={org?.name ?? ''}
-            orgSlug={org?.slug ?? ''}
             roleLabel={role?.label ?? ''}
             inviterName={inviterName}
             email={invite.email}

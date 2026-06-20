@@ -250,10 +250,14 @@ const org = invite.organisations as unknown as { name: string } | null  // ✅
 
 ## Email Invites
 
-- `/api/team/invite` — POST; verifies owner/manager role; generates token; sends dark HTML email via Resend; rolls back if email fails
-- `/api/team/invite/accept` — POST `{ token }`; requires authenticated user; validates token; creates profile + member rows
-- `/invite/[token]/page.tsx` — server component; uses admin client for unauthenticated token validation
-- **Resend note:** `onboarding@resend.dev` only delivers to the Resend account owner in dev. Production needs a verified custom domain.
+- `/api/team/invite` — POST; verifies owner/manager role; generates token; sends dark HTML email via Resend; rolls back if email fails. Sender: `noreply@invites.letroflow.com`.
+- `/api/team/invite/accept` — POST `{ token, firstName?, lastName?, password? }`:
+  - **New user** (password provided): admin creates auth user with `email_confirm: true` (skips email confirmation), creates profile, marks accepted. Client then calls `signInWithPassword`.
+  - **Existing user** (no password): requires authenticated session; creates profile + marks accepted.
+- `/invite/[token]/page.tsx` — server component; uses admin client for unauthenticated token validation. `export const dynamic = 'force-dynamic'` required.
+- `InviteAcceptCard.tsx` — client component with two modes: **signup** (default — name + password fields) and **signin** (toggle for existing users). Never shows "Accept" without first establishing a session.
+- **Resend note:** `onboarding@resend.dev` only delivers to the Resend account owner in dev. Use verified custom domain in production (currently `invites.letroflow.com`).
+- **service_role GRANTs:** `BYPASSRLS` bypasses RLS policies but NOT table-level PostgreSQL grants. If the service role gets "permission denied for table X", run: `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO service_role;` in Supabase SQL Editor.
 
 ---
 
@@ -292,7 +296,7 @@ const org = invite.organisations as unknown as { name: string } | null  // ✅
 | Auth pages (login, signup) — Crystal design | ✅ |
 | Onboarding — Crystal design | ✅ |
 | Email invite system (Resend) | ✅ |
-| Invite acceptance flow | ✅ |
+| Invite acceptance flow (signup + signin) | ✅ |
 | Org data cache (`OrgDataProvider`) | ✅ |
 | `CrystalSelect` custom dropdown | ✅ |
 | `CrystalDatePicker` custom calendar | ✅ |
