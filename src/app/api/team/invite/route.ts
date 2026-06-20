@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     .toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 
   const { error: emailError } = await resend.emails.send({
-    from: 'PropFlow <onboarding@resend.dev>',
+    from: 'PropFlow <noreply@invites.letroflow.com>',
     to: email.trim().toLowerCase(),
     subject: `You've been invited to join ${orgName} on PropFlow`,
     html: buildInviteEmail({ orgName, roleLabel, inviterName, inviteUrl, expiry, email }),
