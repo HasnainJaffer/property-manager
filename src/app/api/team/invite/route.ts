@@ -132,9 +132,9 @@ function buildInviteEmail(p: {
               <!-- Button -->
               <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
                 <tr>
-                  <td style="background:linear-gradient(180deg,#818cf8,#6366f1);border-radius:9px;">
+                  <td bgcolor="#6366f1" style="background:#6366f1;border-radius:9px;">
                     <a href="${p.inviteUrl}"
-                       style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:500;color:#fff;text-decoration:none;border-radius:9px;">
+                       style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:500;color:#ffffff;text-decoration:none;border-radius:9px;background:#6366f1;">
                       Accept invitation
                     </a>
                   </td>
