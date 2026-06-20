@@ -459,14 +459,20 @@ export default function CompliancePage() {
     ? 'Loading…'
     : `${certs.length} certificate${certs.length !== 1 ? 's' : ''} · ${expiredCount} expired · ${expiringCount} expiring soon`
 
+  const colDivider: React.CSSProperties = {
+    backgroundImage: 'linear-gradient(to bottom, transparent 15%, rgba(255,255,255,0.08) 15%, rgba(255,255,255,0.08) 85%, transparent 85%)',
+    backgroundSize: '1px 100%',
+    backgroundPosition: 'right center',
+    backgroundRepeat: 'no-repeat',
+  }
   const thStyle: React.CSSProperties = {
-    padding: '0 12px 10px',
+    padding: '12px 12px 10px',
     fontSize: 10, fontWeight: 500, letterSpacing: '0.1em',
     textTransform: 'uppercase', color: 'var(--text-mute)',
-    textAlign: 'left', whiteSpace: 'nowrap',
+    textAlign: 'left', whiteSpace: 'nowrap', ...colDivider,
   }
   const tdBase: React.CSSProperties = {
-    padding: '11px 12px', fontSize: 12, borderBottom: '1px solid var(--border)',
+    padding: '11px 12px', fontSize: 12, borderBottom: '1px solid var(--border)', ...colDivider,
   }
 
   return (
@@ -533,10 +539,10 @@ export default function CompliancePage() {
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
                       <th style={thStyle}>Certificate</th>
                       <th style={thStyle}>Property</th>
-                      <th style={thStyle}>Issued</th>
-                      <th style={thStyle}>Expires</th>
-                      <th style={thStyle}>Days Left</th>
-                      <th style={thStyle}>Status</th>
+                      <th style={{ ...thStyle, width: 1 }}>Issued</th>
+                      <th style={{ ...thStyle, width: 1 }}>Expires</th>
+                      <th style={{ ...thStyle, width: 1 }}>Days Left</th>
+                      <th style={{ ...thStyle, width: 1, backgroundImage: 'none' }}>Status</th>
                     </tr>
                   </thead>
                   <motion.tbody variants={stagger} initial="hidden" animate="visible">
@@ -567,16 +573,16 @@ export default function CompliancePage() {
                             </p>
                           )}
                         </td>
-                        <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+                        <td style={{ ...tdBase, width: 1, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
                           {fmtDate(cert.issued_date)}
                         </td>
-                        <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
+                        <td style={{ ...tdBase, width: 1, whiteSpace: 'nowrap' }}>
                           <ExpiryDateCell cert={cert} />
                         </td>
-                        <td style={{ ...tdBase }}>
+                        <td style={{ ...tdBase, width: 1 }}>
                           <DaysRemainingBadge expiryDate={cert.expiry_date} />
                         </td>
-                        <td style={{ ...tdBase }}>
+                        <td style={{ ...tdBase, width: 1, backgroundImage: 'none' }}>
                           <StatusBadge status={cert.status} />
                         </td>
                       </motion.tr>
