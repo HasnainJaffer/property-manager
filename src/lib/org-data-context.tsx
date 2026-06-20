@@ -281,7 +281,7 @@ export function OrgDataProvider({
 
       sb.from('invitations')
         .select('id, email, created_at, expires_at, accepted_at, roles ( name, label )')
-        .eq('org_id', id).order('created_at', { ascending: false }),
+        .eq('org_id', id).is('accepted_at', null).order('created_at', { ascending: false }),
 
       sb.from('roles').select('id, name, label').order('sort_order', { ascending: true }),
     ])
@@ -431,7 +431,7 @@ export function OrgDataProvider({
     const sb = createClient()
     const [{ data: memberData }, { data: inviteData }] = await Promise.all([
       sb.from('profiles').select('id, first_name, last_name, is_active, created_at, roles ( name, label )').eq('org_id', orgId).order('created_at', { ascending: true }),
-      sb.from('invitations').select('id, email, created_at, expires_at, accepted_at, roles ( name, label )').eq('org_id', orgId).order('created_at', { ascending: false }),
+      sb.from('invitations').select('id, email, created_at, expires_at, accepted_at, roles ( name, label )').eq('org_id', orgId).is('accepted_at', null).order('created_at', { ascending: false }),
     ])
     setMembers((memberData as unknown as MemberRow[]) ?? [])
     setInvitations((inviteData as unknown as InviteRow[]) ?? [])
