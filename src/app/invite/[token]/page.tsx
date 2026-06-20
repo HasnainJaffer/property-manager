@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import InviteAcceptCard from './InviteAcceptCard'
 
+export const dynamic = 'force-dynamic'
+
 interface Props {
   params: Promise<{ token: string }>
 }
@@ -9,7 +11,7 @@ export default async function InvitePage({ params }: Props) {
   const { token } = await params
   const admin = createAdminClient()
 
-  const { data: invite } = await admin
+  const { data: invite, error: inviteError } = await admin
     .from('invitations')
     .select(`
       id, email, expires_at, accepted_at, invited_by, org_id,
@@ -18,6 +20,8 @@ export default async function InvitePage({ params }: Props) {
     `)
     .eq('token', token)
     .single()
+
+  if (inviteError) console.error('[invite page] lookup error:', inviteError.message, 'token:', token)
 
   // Fetch inviter name separately
   let inviterName = 'Someone'
