@@ -58,8 +58,9 @@ export async function POST(req: NextRequest) {
     admin.from('profiles').select('first_name, last_name').eq('user_id', user.id).eq('org_id', orgId).single(),
   ])
 
-  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  const inviteUrl  = `${appUrl}/invite/${token}`
+  const rawUrl  = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const appUrl  = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`
+  const inviteUrl = `${appUrl}/invite/${token}`
   const orgName    = org?.name ?? 'an organisation'
   const roleLabel  = role?.label ?? 'team member'
   const inviterName = [inviterProfile?.first_name, inviterProfile?.last_name].filter(Boolean).join(' ') || 'Someone'
@@ -130,11 +131,11 @@ function buildInviteEmail(p: {
               </p>
 
               <!-- Button -->
-              <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
                 <tr>
-                  <td bgcolor="#6366f1" style="background:#6366f1;border-radius:9px;">
-                    <a href="${p.inviteUrl}"
-                       style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:500;color:#ffffff;text-decoration:none;border-radius:9px;background:#6366f1;">
+                  <td align="center" bgcolor="#6366f1" style="background:#6366f1;border-radius:9px;padding:12px 28px;">
+                    <a href="${p.inviteUrl}" target="_blank"
+                       style="color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:500;text-decoration:none;white-space:nowrap;">
                       Accept invitation
                     </a>
                   </td>
