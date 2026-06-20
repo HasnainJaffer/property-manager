@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
-import { IconCheck } from '@tabler/icons-react'
+import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
+import { IconCheck, IconAlertTriangle, IconX } from '@tabler/icons-react'
 import AppShell from '@/components/layout/AppShell'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { useOrgData } from '@/lib/org-data-context'
@@ -58,18 +59,184 @@ const PRO_FEATURES = [
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function SettingsPage() {
-  const { orgId } = useOrgData()
+// ─── Delete Account Modal ─────────────────────────────────────────────────────
 
-  const [name,      setName]      = useState('')
-  const [email,     setEmail]     = useState('')
-  const [typeId,    setTypeId]    = useState('')
-  const [plan,      setPlan]      = useState('free')
-  const [orgTypes,  setOrgTypes]  = useState<SelectOption[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [saving,    setSaving]    = useState(false)
-  const [saved,     setSaved]     = useState(false)
-  const [saveError, setSaveError] = useState('')
+function DeleteAccountModal({ isOwner, orgName, onClose }: {
+  isOwner: boolean
+  orgName: string
+  onClose: () => void
+}) {
+  const router = useRouter()
+  const [confirm, setConfirm] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleDelete() {
+    if (confirm !== 'DELETE') return
+    setDeleting(true)
+    setError(null)
+
+    const res = await fetch('/api/account/delete', { method: 'POST' })
+    const data = await res.json()
+
+    if (!res.ok) {
+      setError(data.error ?? 'Something went wrong. Please try again.')
+      setDeleting(false)
+      return
+    }
+
+    // Sign out locally (session cookie is now invalid server-side)
+    await createClient().auth.signOut()
+    router.push('/login')
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <motion.div
+        className="crystal-modal-overlay"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+      />
+      <motion.div
+        className="crystal-modal"
+        initial={{ opacity: 0, scale: 0.97, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.97 }}
+        transition={{ duration: 0.16 }}
+        style={{ position: 'relative', width: '100%', maxWidth: 440 }}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px', borderBottom: '1px solid rgba(251,113,133,0.2)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(251,113,133,0.12)', border: '1px solid rgba(251,113,133,0.25)',
+            }}>
+              <IconAlertTriangle size={15} strokeWidth={1.75} style={{ color: 'var(--rose)' }} />
+            </div>
+            <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+              Delete account
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ width: 28, height: 28, borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--text-mute)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--surface-2)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-mute)'; e.currentTarget.style.background = 'transparent' }}
+          >
+            <IconX size={15} strokeWidth={1.75} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Warning box */}
+          <div style={{
+            padding: '12px 14px', borderRadius: 10,
+            background: 'rgba(251,113,133,0.06)', border: '1px solid rgba(251,113,133,0.2)',
+            fontSize: 12.5, color: 'var(--text-dim)', lineHeight: 1.6,
+          }}>
+            {isOwner ? (
+              <>
+                <p style={{ margin: '0 0 8px', fontWeight: 600, color: 'var(--rose)' }}>
+                  This will permanently delete your organisation.
+                </p>
+                <p style={{ margin: 0 }}>
+                  Deleting your account will permanently remove <strong style={{ color: 'var(--text)' }}>{orgName}</strong> and
+                  all its data — properties, tenancies, tenants, rent records, compliance certificates,
+                  maintenance issues, and more. Team members who only belong to this organisation
+                  will also have their accounts removed. <strong style={{ color: 'var(--text)' }}>This cannot be undone.</strong>
+                </p>
+              </>
+            ) : (
+              <>
+                <p style={{ margin: '0 0 8px', fontWeight: 600, color: 'var(--rose)' }}>
+                  This will permanently delete your account.
+                </p>
+                <p style={{ margin: 0 }}>
+                  Your account and all associated data will be deleted. You will be removed from
+                  any organisations you belong to. <strong style={{ color: 'var(--text)' }}>This cannot be undone.</strong>
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Confirm input */}
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--text-dim)', marginBottom: 6 }}>
+              Type <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--rose)', letterSpacing: '0.05em' }}>DELETE</span> to confirm
+            </label>
+            <input
+              className="crystal-input"
+              value={confirm}
+              onChange={e => setConfirm(e.target.value)}
+              placeholder="DELETE"
+              autoComplete="off"
+              spellCheck={false}
+              style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'var(--font-mono)' }}
+            />
+          </div>
+
+          {error && (
+            <p style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, background: 'rgba(251,113,133,0.08)', border: '1px solid rgba(251,113,133,0.25)', color: 'var(--rose)', margin: 0 }}>
+              {error}
+            </p>
+          )}
+
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button
+              type="button" onClick={onClose}
+              style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, background: 'var(--surface-2)', border: '1px solid var(--border-2)', color: 'var(--text-dim)', cursor: 'pointer', transition: 'color .15s' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-dim)'}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={confirm !== 'DELETE' || deleting}
+              style={{
+                padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+                background: confirm === 'DELETE' && !deleting ? 'rgba(251,113,133,0.15)' : 'rgba(251,113,133,0.06)',
+                border: `1px solid ${confirm === 'DELETE' && !deleting ? 'rgba(251,113,133,0.5)' : 'rgba(251,113,133,0.2)'}`,
+                color: confirm === 'DELETE' && !deleting ? 'var(--rose)' : 'rgba(251,113,133,0.4)',
+                cursor: confirm === 'DELETE' && !deleting ? 'pointer' : 'not-allowed',
+                transition: 'all .15s',
+              }}
+            >
+              {deleting ? 'Deleting…' : 'Delete my account'}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function SettingsPage() {
+  const { orgId, orgName, currentUser } = useOrgData()
+
+  const [name,            setName]            = useState('')
+  const [email,           setEmail]           = useState('')
+  const [typeId,          setTypeId]          = useState('')
+  const [plan,            setPlan]            = useState('free')
+  const [orgTypes,        setOrgTypes]        = useState<SelectOption[]>([])
+  const [loading,         setLoading]         = useState(true)
+  const [saving,          setSaving]          = useState(false)
+  const [saved,           setSaved]           = useState(false)
+  const [saveError,       setSaveError]       = useState('')
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+
+  const isOwner = currentUser?.role === 'owner'
 
   useEffect(() => {
     if (!orgId) return
@@ -227,7 +394,7 @@ export default function SettingsPage() {
             </div>
           </motion.div>
 
-          {/* ── Subscription ─────────────────────────────────────────────── */}
+          {/* ── Subscription ──────────────────────────────────────────── */}
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -289,8 +456,53 @@ export default function SettingsPage() {
             )}
           </motion.div>
 
+          {/* ── Danger Zone ─────────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, delay: 0.14 }}
+            style={{
+              ...cardStyle,
+              border: '1px solid rgba(251,113,133,0.18)',
+            }}
+          >
+            <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--rose)', margin: '0 0 4px' }}>
+              Danger Zone
+            </h2>
+            <p style={{ fontSize: 12, color: 'var(--text-mute)', margin: '0 0 20px', lineHeight: 1.55 }}>
+              {isOwner
+                ? `Permanently delete your account and the ${orgName} organisation, including all properties, tenancies, tenants, compliance records, and team members.`
+                : 'Permanently delete your account and remove yourself from all organisations you belong to.'}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(true)}
+              style={{
+                padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+                background: 'rgba(251,113,133,0.08)', border: '1px solid rgba(251,113,133,0.25)',
+                color: 'var(--rose)', cursor: 'pointer', transition: 'background .15s, border-color .15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(251,113,133,0.14)'; e.currentTarget.style.borderColor = 'rgba(251,113,133,0.45)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(251,113,133,0.08)'; e.currentTarget.style.borderColor = 'rgba(251,113,133,0.25)' }}
+            >
+              Delete account
+            </button>
+          </motion.div>
+
         </div>
       </PageWrapper>
+
+      <AnimatePresence>
+        {showDeleteModal && (
+          <DeleteAccountModal
+            isOwner={isOwner}
+            orgName={orgName}
+            onClose={() => setShowDeleteModal(false)}
+          />
+        )}
+      </AnimatePresence>
+
     </AppShell>
   )
 }
