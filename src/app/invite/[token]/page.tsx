@@ -79,7 +79,7 @@ export default async function InvitePage({ params }: Props) {
           }}>
             <div style={{ position: 'absolute', inset: 7, borderRadius: 4, background: 'var(--bg)' }} />
           </div>
-          <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--text)' }}>PropFlow</span>
+          <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--text)' }}>LetroFlow</span>
         </div>
 
         {/* Error states */}

@@ -1,4 +1,4 @@
-# CLAUDE.md — PropFlow
+# CLAUDE.md — LetroFlow
 
 Single source of truth. Read fully before writing any code.
 

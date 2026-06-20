@@ -79,7 +79,7 @@ export default function LoadingScreen({ message }: LoadingScreenProps) {
             fontSize: 16, fontWeight: 600, color: 'var(--text)',
             marginBottom: 10, letterSpacing: '-0.01em',
           }}>
-            PropFlow
+            LetroFlow
           </p>
 
           <AnimatePresence mode="wait">

@@ -140,7 +140,7 @@ export default function Sidebar({
           }} />
         </div>
         <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--text)' }}>
-          PropFlow
+          LetroFlow
         </span>
       </div>
 

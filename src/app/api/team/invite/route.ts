@@ -68,9 +68,9 @@ export async function POST(req: NextRequest) {
     .toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 
   const { error: emailError } = await resend.emails.send({
-    from: 'PropFlow <noreply@invites.letroflow.com>',
+    from: 'LetroFlow <noreply@invites.letroflow.com>',
     to: email.trim().toLowerCase(),
-    subject: `You've been invited to join ${orgName} on PropFlow`,
+    subject: `You've been invited to join ${orgName} on LetroFlow`,
     html: buildInviteEmail({ orgName, roleLabel, inviterName, inviteUrl, expiry, email }),
   })
 
@@ -100,7 +100,7 @@ function buildInviteEmail(p: {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>You've been invited to PropFlow</title>
+  <title>You've been invited to LetroFlow</title>
 </head>
 <body style="margin:0;padding:0;background:#07090f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#07090f;padding:40px 16px;">
@@ -112,7 +112,7 @@ function buildInviteEmail(p: {
           <tr>
             <td style="padding-bottom:28px;text-align:center;">
               <span style="display:inline-flex;align-items:center;gap:10px;font-size:18px;font-weight:600;color:#e7ecf3;letter-spacing:-0.01em;">
-                PropFlow
+                LetroFlow
               </span>
             </td>
           </tr>
@@ -126,7 +126,7 @@ function buildInviteEmail(p: {
               </p>
               <p style="margin:0 0 24px;font-size:14px;color:#98a2b3;line-height:1.6;">
                 <strong style="color:#e7ecf3;">${p.inviterName}</strong> has invited you to join
-                <strong style="color:#e7ecf3;">${p.orgName}</strong> on PropFlow as
+                <strong style="color:#e7ecf3;">${p.orgName}</strong> on LetroFlow as
                 <strong style="color:#e7ecf3;">${p.roleLabel}</strong>.
               </p>
 
@@ -163,7 +163,7 @@ function buildInviteEmail(p: {
           <tr>
             <td style="padding-top:20px;text-align:center;">
               <p style="margin:0;font-size:11px;color:#66707d;">
-                PropFlow · Property management for UK landlords
+                LetroFlow · Property management for UK landlords
               </p>
             </td>
           </tr>

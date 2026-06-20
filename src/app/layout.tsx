@@ -13,7 +13,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PropFlow",
+  title: "LetroFlow",
   description: "Property management platform for UK landlords",
 };
 

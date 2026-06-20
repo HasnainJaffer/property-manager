@@ -45,7 +45,7 @@ function LoginForm() {
           }} />
         </div>
         <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--text)' }}>
-          PropFlow
+          LetroFlow
         </span>
       </div>
 

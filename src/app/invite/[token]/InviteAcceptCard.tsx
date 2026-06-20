@@ -207,7 +207,7 @@ export default function InviteAcceptCard({ token, orgName, roleLabel, inviterNam
           </button>
 
           <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-mute)', margin: 0 }}>
-            New to PropFlow?{' '}
+            New to LetroFlow?{' '}
             <button type="button" onClick={() => switchMode('signup')} style={switchBtn}>Create an account</button>
           </p>
         </form>

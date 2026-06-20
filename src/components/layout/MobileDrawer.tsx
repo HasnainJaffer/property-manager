@@ -178,7 +178,7 @@ export default function MobileDrawer({
                 }}>
                   <div style={{ position: 'absolute', inset: 6, borderRadius: 4, background: 'var(--bg)' }} />
                 </div>
-                <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>PropFlow</span>
+                <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>LetroFlow</span>
               </div>
               <button
                 onClick={onClose}
