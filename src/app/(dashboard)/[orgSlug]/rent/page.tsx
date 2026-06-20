@@ -20,6 +20,18 @@ const PAYMENT_METHOD_OPTIONS = [
   { value: 'other',          label: 'Other' },
 ]
 
+const CHARGE_TYPE_OPTIONS = [
+  { value: 'rent',           label: 'Rent' },
+  { value: 'deposit',        label: 'Deposit' },
+  { value: 'deposit_return', label: 'Deposit Return' },
+  { value: 'maintenance',    label: 'Maintenance' },
+  { value: 'utilities',      label: 'Utilities' },
+  { value: 'insurance',      label: 'Insurance' },
+  { value: 'management_fee', label: 'Management Fee' },
+  { value: 'legal',          label: 'Legal' },
+  { value: 'other',          label: 'Other' },
+]
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface MonthSummary {
@@ -91,6 +103,7 @@ function buildMonthSummaries(rows: { due_date: string; amount: number; paid_amou
 
 // ─── Animations ───────────────────────────────────────────────────────────────
 
+const pageVariants = { hidden: { opacity: 0, y: 4 }, visible: { opacity: 1, y: 0, transition: { duration: 0.18, ease: 'easeOut' as const } } }
 const stagger = { visible: { transition: { staggerChildren: 0.04 } } }
 const rowAnim = { hidden: { opacity: 0, y: 3 }, visible: { opacity: 1, y: 0, transition: { duration: 0.15 } } }
 
@@ -280,6 +293,145 @@ function KpiCard({ label, value, sub, color }: {
         {value}
       </p>
       {sub && <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 5 }}>{sub}</p>}
+    </div>
+  )
+}
+
+// ─── Add Charge Modal ─────────────────────────────────────────────────────────
+
+function AddChargeModal({ orgId, tenancies, onClose, onAdded }: {
+  orgId: string
+  tenancies: ActiveTenancy[]
+  onClose: () => void
+  onAdded: () => void
+}) {
+  const [form, setForm] = useState({
+    tenancy_id:  tenancies[0]?.id ?? '',
+    charge_type: 'rent',
+    description: '',
+    amount:      '',
+    due_date:    new Date().toISOString().slice(0, 10),
+  })
+  const [error, setError]   = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  function set(k: keyof typeof form, v: string) {
+    setForm(f => ({ ...f, [k]: v }))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.tenancy_id || !form.amount) return
+    setSaving(true); setError(null)
+
+    const { error: err } = await createClient().from('charges').insert({
+      org_id:      orgId,
+      tenancy_id:  form.tenancy_id,
+      charge_type: form.charge_type,
+      description: form.description.trim() || null,
+      amount:      parseFloat(form.amount),
+      paid_amount: 0,
+      due_date:    form.due_date,
+      status:      'pending',
+    })
+
+    if (err) { setError(err.message); setSaving(false); return }
+    onAdded()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <motion.div
+        className="crystal-modal-overlay"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+      />
+      <motion.div
+        className="crystal-modal crystal-scroll"
+        initial={{ opacity: 0, scale: 0.97, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.97 }}
+        transition={{ duration: 0.16 }}
+        style={{ position: 'relative', width: '100%', maxWidth: 420, maxHeight: '90vh', overflowY: 'auto' }}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px', borderBottom: '1px solid var(--border)',
+          position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 1,
+        }}>
+          <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Add charge</h2>
+          <button
+            onClick={onClose}
+            style={{
+              width: 28, height: 28, borderRadius: 7, border: 'none', background: 'transparent',
+              color: 'var(--text-mute)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s, background .15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--surface-2)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-mute)'; e.currentTarget.style.background = 'transparent' }}
+          >
+            <IconX size={15} strokeWidth={1.75} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <ModalField label="Tenancy" required>
+            <CrystalSelect
+              value={form.tenancy_id}
+              onChange={v => set('tenancy_id', v)}
+              options={tenancies.map(t => ({ value: t.id, label: `${t.lead_name} — ${t.property_unit}` }))}
+              placeholder="Select tenancy…"
+            />
+          </ModalField>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <ModalField label="Type" required>
+              <CrystalSelect value={form.charge_type} onChange={v => set('charge_type', v)} options={CHARGE_TYPE_OPTIONS} />
+            </ModalField>
+            <ModalField label="Due date" required>
+              <CrystalDatePicker value={form.due_date} onChange={v => set('due_date', v)} />
+            </ModalField>
+          </div>
+
+          <ModalField label="Amount" required>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-mute)', pointerEvents: 'none' }}>£</span>
+              <input
+                required type="number" min="0.01" step="0.01"
+                className="crystal-input" style={{ paddingLeft: 22 }}
+                value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="950.00"
+              />
+            </div>
+          </ModalField>
+
+          <ModalField label="Description">
+            <input className="crystal-input" value={form.description} onChange={e => set('description', e.target.value)} placeholder="e.g. June 2026 rent" />
+          </ModalField>
+
+          {error && (
+            <p style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, background: 'rgba(251,113,133,0.08)', border: '1px solid rgba(251,113,133,0.25)', color: 'var(--rose)' }}>
+              {error}
+            </p>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
+            <button
+              type="button" onClick={onClose}
+              style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, background: 'var(--surface-2)', border: '1px solid var(--border-2)', color: 'var(--text-dim)', cursor: 'pointer', transition: 'color .15s' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-dim)'}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit" disabled={saving}
+              style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500, background: 'linear-gradient(180deg, var(--indigo), var(--indigo-2))', boxShadow: '0 4px 14px var(--glow-i)', color: '#fff', border: 'none', cursor: 'pointer', opacity: saving ? 0.6 : 1, transition: 'opacity .15s' }}
+            >
+              {saving ? 'Adding…' : 'Add charge'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
     </div>
   )
 }
@@ -476,8 +628,9 @@ export default function RentPage() {
   const { orgId, charges: allCharges, tenancies, loading, refreshCharges } = useOrgData()
 
   const now = new Date()
-  const [monthOffset, setMonthOffset] = useState(0)
-  const [showModal, setShowModal]     = useState(false)
+  const [monthOffset,    setMonthOffset]    = useState(0)
+  const [showModal,      setShowModal]      = useState(false)
+  const [showAddCharge,  setShowAddCharge]  = useState(false)
 
   // Compute selected year/month from offset
   const targetDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1)
@@ -524,8 +677,10 @@ export default function RentPage() {
     <>
       <AppShell title="Rent Ledger" subtitle={subtitle} action={{ label: 'Record Payment', onClick: () => setShowModal(true) }}>
         <PageWrapper>
+          <motion.div variants={pageVariants} initial="hidden" animate="visible">
 
-          {/* ── Bar chart ───────────────────────────────────────────────── */}
+          {/* ── Bar chart (desktop only) ─────────────────────────────── */}
+          <div className="hidden md:block">
           {monthSummaries.length > 0 && (
             <RentChart
               summaries={monthSummaries}
@@ -534,6 +689,7 @@ export default function RentPage() {
               onSelect={(y, m, offset) => setMonthOffset(offset)}
             />
           )}
+          </div>
 
           {/* ── Month navigation + KPI cards ─────────────────────────── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
@@ -595,7 +751,28 @@ export default function RentPage() {
             </div>
           </div>
 
-          {/* ── Charges table ────────────────────────────────────────── */}
+          {/* ── Charges header row ───────────────────────────────────── */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <p style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-mute)' }}>
+              Charges · {monthLabel(year, month)}
+            </p>
+            {activeTenancies.length > 0 && (
+              <button
+                onClick={() => setShowAddCharge(true)}
+                style={{
+                  padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  color: 'var(--text-dim)', cursor: 'pointer', transition: 'color .15s, border-color .15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+              >
+                + Add charge
+              </button>
+            )}
+          </div>
+
+          {/* ── Charges table / cards ────────────────────────────────── */}
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
               <p style={{ fontSize: 12, color: 'var(--text-mute)' }}>Loading charges…</p>
@@ -612,61 +789,104 @@ export default function RentPage() {
               </div>
             </div>
           ) : (
-            <div style={{
-              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14,
-              overflow: 'hidden', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
-              boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 24px -8px rgba(0,0,0,0.28)',
-            }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    <th style={{ ...thStyle, textAlign: 'left' }}>Tenant</th>
-                    <th style={{ ...thStyle, textAlign: 'left' }}>Property</th>
-                    <th style={{ ...thStyle, textAlign: 'left' }}>Due</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>Amount</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>Paid</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>Balance</th>
-                    <th style={{ ...thStyle, textAlign: 'left' }}>Status</th>
-                  </tr>
-                </thead>
-                <motion.tbody variants={stagger} initial="hidden" animate="visible">
-                  {charges.map((c, i) => {
-                    const balance = c.amount - c.paid_amount
-                    return (
-                      <motion.tr
-                        key={c.id}
-                        variants={rowAnim}
-                        className="crystal-table-row"
-                        style={{ borderBottom: i < charges.length - 1 ? '1px solid var(--border)' : 'none' }}
-                      >
-                        <td style={{ ...tdBase, fontWeight: 500, color: 'var(--text)', whiteSpace: 'nowrap' }}>
-                          {leadTenantName(c)}
-                        </td>
-                        <td style={{ ...tdBase, color: 'var(--text-dim)' }}>
-                          {propertyUnit(c)}
-                        </td>
-                        <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
-                          {fmtDate(c.due_date)}
-                        </td>
-                        <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', color: 'var(--text)', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {fmtGBP(c.amount)}
-                        </td>
-                        <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', color: 'var(--mint)', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {c.paid_amount > 0 ? fmtGBP(c.paid_amount) : <span style={{ color: 'var(--text-mute)' }}>—</span>}
-                        </td>
-                        <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', color: balance > 0 ? 'var(--rose)' : 'var(--text-mute)', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {balance > 0 ? fmtGBP(balance) : '—'}
-                        </td>
-                        <td style={{ ...tdBase }}>
-                          <StatusBadge status={c.status} />
-                        </td>
-                      </motion.tr>
-                    )
-                  })}
-                </motion.tbody>
-              </table>
-            </div>
+            <>
+              {/* Desktop table */}
+              <div className="hidden md:block" style={{
+                background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14,
+                overflow: 'hidden', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
+                boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 24px -8px rgba(0,0,0,0.28)',
+              }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ ...thStyle, textAlign: 'left' }}>Tenant</th>
+                      <th style={{ ...thStyle, textAlign: 'left' }}>Property</th>
+                      <th style={{ ...thStyle, textAlign: 'left' }}>Due</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Amount</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Paid</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Balance</th>
+                      <th style={{ ...thStyle, textAlign: 'left' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <motion.tbody variants={stagger} initial="hidden" animate="visible">
+                    {charges.map((c, i) => {
+                      const balance = c.amount - c.paid_amount
+                      return (
+                        <motion.tr
+                          key={c.id}
+                          variants={rowAnim}
+                          className="crystal-table-row"
+                          style={{ borderBottom: i < charges.length - 1 ? '1px solid var(--border)' : 'none' }}
+                        >
+                          <td style={{ ...tdBase, fontWeight: 500, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+                            {leadTenantName(c)}
+                          </td>
+                          <td style={{ ...tdBase, color: 'var(--text-dim)' }}>
+                            {propertyUnit(c)}
+                          </td>
+                          <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+                            {fmtDate(c.due_date)}
+                          </td>
+                          <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', color: 'var(--text)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            {fmtGBP(c.amount)}
+                          </td>
+                          <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', color: 'var(--mint)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            {c.paid_amount > 0 ? fmtGBP(c.paid_amount) : <span style={{ color: 'var(--text-mute)' }}>—</span>}
+                          </td>
+                          <td style={{ ...tdBase, fontFamily: 'var(--font-mono)', color: balance > 0 ? 'var(--rose)' : 'var(--text-mute)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            {balance > 0 ? fmtGBP(balance) : '—'}
+                          </td>
+                          <td style={{ ...tdBase }}>
+                            <StatusBadge status={c.status} />
+                          </td>
+                        </motion.tr>
+                      )
+                    })}
+                  </motion.tbody>
+                </table>
+              </div>
+
+              {/* Mobile cards */}
+              <motion.div className="flex md:hidden" variants={stagger} initial="hidden" animate="visible"
+                style={{ flexDirection: 'column', gap: 10 }}>
+                {charges.map(c => {
+                  const balance = c.amount - c.paid_amount
+                  return (
+                    <motion.div key={c.id} variants={rowAnim}
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{leadTenantName(c)}</p>
+                          <p style={{ fontSize: 11.5, color: 'var(--text-dim)' }}>{propertyUnit(c)}</p>
+                        </div>
+                        <StatusBadge status={c.status} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                        <div>
+                          <p style={{ fontSize: 10, color: 'var(--text-mute)', marginBottom: 3 }}>Due {fmtDate(c.due_date)}</p>
+                          <p style={{ fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>{fmtGBP(c.amount)}</p>
+                        </div>
+                        {balance > 0 && (
+                          <div style={{ textAlign: 'right' }}>
+                            <p style={{ fontSize: 10, color: 'var(--text-mute)', marginBottom: 3 }}>Outstanding</p>
+                            <p style={{ fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--rose)' }}>{fmtGBP(balance)}</p>
+                          </div>
+                        )}
+                        {c.paid_amount > 0 && balance <= 0 && (
+                          <div style={{ textAlign: 'right' }}>
+                            <p style={{ fontSize: 10, color: 'var(--text-mute)', marginBottom: 3 }}>Paid</p>
+                            <p style={{ fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--mint)' }}>{fmtGBP(c.paid_amount)}</p>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </motion.div>
+            </>
           )}
+
+          </motion.div>
         </PageWrapper>
       </AppShell>
 
@@ -677,6 +897,17 @@ export default function RentPage() {
             tenancies={activeTenancies}
             onClose={() => setShowModal(false)}
             onRecorded={() => { setShowModal(false); refreshCharges() }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showAddCharge && orgId && activeTenancies.length > 0 && (
+          <AddChargeModal
+            orgId={orgId}
+            tenancies={activeTenancies}
+            onClose={() => setShowAddCharge(false)}
+            onAdded={() => { setShowAddCharge(false); refreshCharges() }}
           />
         )}
       </AnimatePresence>

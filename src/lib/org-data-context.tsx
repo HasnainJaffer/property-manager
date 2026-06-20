@@ -10,8 +10,10 @@ import LoadingScreen from '@/components/ui/LoadingScreen'
 export interface PropertyUnit {
   id: string
   unit_ref: string
+  unit_type_id: string | null
   status: string
   target_rent: number | null
+  unit_types: { label: string } | null
 }
 
 export interface PropertyRow {
@@ -20,6 +22,7 @@ export interface PropertyRow {
   address_line1: string
   city: string
   postcode: string
+  property_type_id: string | null
   purchase_price: number | null
   purchase_date: string | null
   current_valuation: number | null
@@ -159,6 +162,8 @@ interface OrgContextValue {
   loading: boolean
   // Targeted refreshes — called after mutations so pages stay up to date
   refreshProperties: () => Promise<void>
+  refreshTenancies: () => Promise<void>
+  refreshTenants: () => Promise<void>
   refreshCharges: () => Promise<void>
   refreshCerts: () => Promise<void>
   refreshIssues: () => Promise<void>
@@ -352,13 +357,36 @@ export function OrgDataProvider({
 
   // ── Targeted refreshes ────────────────────────────────────────────────────
 
+  const refreshTenancies = useCallback(async () => {
+    if (!orgId) return
+    const { data } = await createClient()
+      .from('tenancies')
+      .select(`id, status, tenancy_type, rent_amount, rent_frequency,
+        start_date, end_date, deposit_amount, deposit_scheme, deposit_registered_date,
+        units ( unit_ref, properties ( name ) ),
+        tenancy_tenants ( is_lead, tenants ( first_name, last_name ) )`)
+      .eq('org_id', orgId).order('start_date', { ascending: false })
+    setTenancies((data as unknown as TenancyRow[]) ?? [])
+  }, [orgId])
+
+  const refreshTenants = useCallback(async () => {
+    if (!orgId) return
+    const { data } = await createClient()
+      .from('tenants')
+      .select(`id, first_name, last_name, email, phone,
+        right_to_rent_status, right_to_rent_expiry, is_active,
+        tenancy_tenants ( tenancies ( status, units ( unit_ref, properties ( name ) ) ) )`)
+      .eq('org_id', orgId).order('last_name', { ascending: true })
+    setTenants((data as unknown as TenantRow[]) ?? [])
+  }, [orgId])
+
   const refreshProperties = useCallback(async () => {
     if (!orgId) return
     const { data } = await createClient()
       .from('properties')
       .select(`id, name, address_line1, city, postcode,
         purchase_price, purchase_date, current_valuation, mortgage_monthly,
-        property_types ( label ), units ( id, unit_ref, status, target_rent )`)
+        property_type_id, property_types ( label ), units ( id, unit_ref, unit_type_id, status, target_rent, unit_types ( label ) )`)
       .eq('org_id', orgId).eq('is_active', true).order('created_at', { ascending: true })
     setProperties((data as unknown as PropertyRow[]) ?? [])
   }, [orgId])
@@ -434,7 +462,7 @@ export function OrgDataProvider({
       orgId, orgSlug, orgName, orgTypeLabel, currentUser,
       properties, propertyTypes, tenants, tenancies, charges, certs, issues, members, invitations, roles,
       loading,
-      refreshProperties, refreshCharges, refreshCerts, refreshIssues, refreshTeam,
+      refreshProperties, refreshTenancies, refreshTenants, refreshCharges, refreshCerts, refreshIssues, refreshTeam,
       updateIssueStatus, cancelInvite,
     }}>
       {/* Loading screen sits as a fixed overlay so children always mount,

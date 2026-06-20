@@ -211,7 +211,7 @@ const tableCard: React.CSSProperties = {
 }
 
 const thStyle: React.CSSProperties = {
-  padding: '0 14px 10px',
+  padding: '12px 14px 10px',
   fontSize: 10,
   fontWeight: 500,
   letterSpacing: '0.1em',

@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# local error logs
+/errors/
+
 # claude code verification screenshots
 verify-*.png
 
