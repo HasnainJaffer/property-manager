@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 32 32" fill="none" role="img" aria-label="LetroFlow">
+  <defs>
+    <linearGradient id="lf-tile" x1="3" y1="3" x2="29" y2="29" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#818cf8"></stop>
+      <stop offset=".52" stop-color="#22d3ee"></stop>
+      <stop offset="1" stop-color="#34d399"></stop>
+    </linearGradient>
+  </defs>
+  <rect x="1.25" y="1.25" width="29.5" height="29.5" rx="9" fill="url(#lf-tile)"></rect>
+  <rect x="1.25" y="1.25" width="29.5" height="29.5" rx="9" fill="none" stroke="#fff" stroke-opacity=".28"></rect>
+  <g stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M8 16.5 16 9.5l8 7v4.5"></path>
+    <path d="M8 16.5v4.5"></path>
+    <path d="M8 21.5q4-2.6 8 0t8 0"></path>
+  </g>
+</svg>

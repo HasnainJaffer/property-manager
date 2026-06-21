@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="88" viewBox="0 0 340 88" fill="none" role="img" aria-label="LetroFlow">
+  <defs>
+    <linearGradient id="lf-tile" x1="14.6" y1="14.6" x2="73.4" y2="73.4" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#818cf8"></stop>
+      <stop offset=".52" stop-color="#22d3ee"></stop>
+      <stop offset="1" stop-color="#34d399"></stop>
+    </linearGradient>
+    <linearGradient id="lf-word" x1="116" y1="0" x2="320" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#818cf8"></stop>
+      <stop offset="1" stop-color="#22d3ee"></stop>
+    </linearGradient>
+  </defs>
+  <g transform="translate(16,16) scale(1.75)">
+    <rect x="1.25" y="1.25" width="29.5" height="29.5" rx="9" fill="url(#lf-tile)"></rect>
+    <rect x="1.25" y="1.25" width="29.5" height="29.5" rx="9" fill="none" stroke="#fff" stroke-opacity=".28"></rect>
+    <g stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <path d="M8 16.5 16 9.5l8 7v4.5"></path>
+      <path d="M8 16.5v4.5"></path>
+      <path d="M8 21.5q4-2.6 8 0t8 0"></path>
+    </g>
+  </g>
+  <text x="84" y="56" font-family="Geist, -apple-system, BlinkMacSystemFont, &#39;Segoe UI&#39;, system-ui, sans-serif" font-size="38" font-weight="600" letter-spacing="-0.8">
+    <tspan fill="#e7ecf3">Letro</tspan><tspan fill="url(#lf-word)">Flow</tspan>
+  </text>
+</svg>
