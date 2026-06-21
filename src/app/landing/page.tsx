@@ -74,8 +74,8 @@ export default function LandingPage() {
           </div>
 
           <div style={{ gap: '8px', alignItems: 'center', display: 'none' }} className="lf-desktop-ctas">
-            <a href="https://app.letroflow.com/login"  className="btn-secondary" style={{ padding: '7px 16px', fontSize: '14px' }}>Log in</a>
-            <a href="https://app.letroflow.com/signup" className="btn-primary"   style={{ padding: '7px 18px', fontSize: '14px' }}>Get started free</a>
+            <a href="https://app.letroflow.com/login"  className="btn-secondary" style={{ padding: '7px 16px', fontSize: '14px' }}>Log In</a>
+            <a href="https://app.letroflow.com/signup" className="btn-primary"   style={{ padding: '7px 18px', fontSize: '14px', marginRight: '22px' }}>Get Started</a>
           </div>
 
           <button
@@ -105,8 +105,8 @@ export default function LandingPage() {
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <a href="https://app.letroflow.com/login"  className="btn-secondary" style={{ padding: '10px 16px', fontSize: '14px', justifyContent: 'center' }}>Log in</a>
-            <a href="https://app.letroflow.com/signup" className="btn-primary"   style={{ padding: '10px 18px', fontSize: '14px', justifyContent: 'center' }}>Get started free</a>
+            <a href="https://app.letroflow.com/login"  className="btn-secondary" style={{ padding: '10px 16px', fontSize: '14px', justifyContent: 'center' }}>Log In</a>
+            <a href="https://app.letroflow.com/signup" className="btn-primary"   style={{ padding: '10px 18px', fontSize: '14px', justifyContent: 'center', marginRight: '6px' }}>Get Started</a>
           </div>
         </div>
       </nav>
