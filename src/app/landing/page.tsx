@@ -1,43 +1,23 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import GooeyNav from './GooeyNav'
+
+const NAV_ITEMS = [
+  { label: 'Features',     href: '#features' },
+  { label: 'How it works', href: '#how-it-works' },
+  { label: 'Compliance',   href: '#compliance' },
+  { label: 'Pricing',      href: '#pricing' },
+]
 
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const navLinksRef = useRef<HTMLDivElement>(null)
-  const navHighlightRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  useEffect(() => {
-    const nav = navLinksRef.current
-    const hl = navHighlightRef.current
-    if (!nav || !hl) return
-    const links = Array.from(nav.querySelectorAll('.lf-nav-link'))
-    const handlers: [Element, () => void][] = links.map(link => {
-      const fn = () => {
-        const nr = nav.getBoundingClientRect()
-        const lr = link.getBoundingClientRect()
-        hl.style.opacity = '1'
-        hl.style.width = lr.width + 'px'
-        hl.style.height = lr.height + 'px'
-        hl.style.left = lr.left - nr.left + 'px'
-        hl.style.top = lr.top - nr.top + 'px'
-      }
-      link.addEventListener('mouseenter', fn)
-      return [link, fn]
-    })
-    const onLeave = () => { hl.style.opacity = '0' }
-    nav.addEventListener('mouseleave', onLeave)
-    return () => {
-      handlers.forEach(([el, fn]) => el.removeEventListener('mouseenter', fn))
-      nav.removeEventListener('mouseleave', onLeave)
-    }
   }, [])
 
   useEffect(() => {
@@ -74,21 +54,23 @@ export default function LandingPage() {
     <>
       {/* ── NAVBAR ── */}
       <nav id="lf-navbar" className={scrolled ? 'scrolled' : ''} role="navigation" aria-label="Main navigation">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', gap: '4px' }}>
           <a href="#" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0 }} aria-label="LetroFlow home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo/letroflow-lockup-dark.svg" alt="LetroFlow" height={36} style={{ display: 'block' }} />
+            <img src="/logo/letroflow-lockup-dark.svg" alt="LetroFlow" height={28} style={{ display: 'block' }} />
           </a>
 
-          <div
-            ref={navLinksRef}
-            style={{ gap: '2px', alignItems: 'center', position: 'relative', display: 'none' }}
-            className="lf-desktop-nav"
-          >
-            <div ref={navHighlightRef} id="lf-nav-highlight" />
-            {['Features', 'How it works', 'Compliance', 'Pricing'].map(label => (
-              <a key={label} href={`#${label.toLowerCase().replace(/ /g, '-')}`} className="lf-nav-link">{label}</a>
-            ))}
+          <div style={{ display: 'none' }} className="lf-desktop-nav">
+            <GooeyNav
+              items={NAV_ITEMS}
+              particleCount={10}
+              particleDistances={[60, 8]}
+              particleR={80}
+              animationTime={500}
+              timeVariance={300}
+              colors={[1, 2, 3, 1, 2, 3, 1, 4]}
+              initialActiveIndex={-1}
+            />
           </div>
 
           <div style={{ gap: '8px', alignItems: 'center', display: 'none' }} className="lf-desktop-ctas">
@@ -116,7 +98,7 @@ export default function LandingPage() {
           </button>
         </div>
 
-        <div id="lf-mobile-menu" className={`lf-mobile-menu${menuOpen ? ' open' : ''}`} style={{ borderTop: '1px solid var(--border)', padding: '14px 18px' }}>
+        <div id="lf-mobile-menu" className={`lf-mobile-menu${menuOpen ? ' open' : ''}`} style={{ borderTop: menuOpen ? '1px solid var(--border)' : 'none', padding: menuOpen ? '14px 18px' : '0 18px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '14px' }}>
             {['Features', 'How it works', 'Compliance', 'Pricing'].map(label => (
               <a key={label} href={`#${label.toLowerCase().replace(/ /g, '-')}`} className="lf-nav-link" onClick={() => setMenuOpen(false)} style={{ padding: '10px 12px' }}>{label}</a>
@@ -284,7 +266,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FEATURES ── */}
-      <section id="features" style={{ padding: '40px 24px 80px' }}>
+      <section id="features" style={{ padding: '40px 24px 80px', scrollMarginTop: '90px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '52px' }} className="reveal">
             <div className="pill pill-indigo" style={{ marginBottom: '16px' }}>Everything you need</div>
@@ -314,7 +296,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section id="how-it-works" style={{ padding: '40px 24px 80px' }}>
+      <section id="how-it-works" style={{ padding: '40px 24px 80px', scrollMarginTop: '90px' }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '52px' }} className="reveal">
             <div className="pill pill-cyan" style={{ marginBottom: '16px' }}>Simple setup</div>
@@ -337,7 +319,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── COMPLIANCE ── */}
-      <section id="compliance" style={{ padding: '40px 24px 80px' }}>
+      <section id="compliance" style={{ padding: '40px 24px 80px', scrollMarginTop: '90px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: '48px', alignItems: 'center' }}>
             <div className="reveal">
@@ -388,7 +370,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── PRICING ── */}
-      <section id="pricing" style={{ padding: '40px 24px 80px' }}>
+      <section id="pricing" style={{ padding: '40px 24px 80px', scrollMarginTop: '90px' }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '52px' }} className="reveal">
             <div className="pill pill-green" style={{ marginBottom: '16px' }}>Simple pricing</div>
