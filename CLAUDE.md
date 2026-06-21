@@ -44,6 +44,10 @@ Multi-tenant UK **buy-to-let property management SaaS**. Think "Xero for propert
 
 Deployed at: **https://property-manager-orpin.vercel.app** (Vercel, `master` branch)
 
+Two domains (both on the same Vercel project, same `master` branch):
+- **`letroflow.com`** — marketing landing page (`src/app/landing/`), routed via middleware hostname check
+- **`app.letroflow.com`** — the full property management app
+
 ---
 
 ## Page Wrapper Pattern
@@ -324,6 +328,12 @@ const org = invite.organisations as unknown as { name: string } | null  // ✅
 | Invite — accepted invites hidden from pending list | ✅ |
 | Rebrand: PropFlow → LetroFlow (all UI, emails, metadata) | ✅ |
 | Delete account — Danger Zone in Settings, cascade function, API route | ✅ |
+| Landing page — Crystal marketing site (`src/app/landing/`) | ✅ |
+| Hostname routing — `letroflow.com` → `/landing` via `middleware.ts` | ✅ |
+| GooeyNav — scroll-to-clear pill nav in landing navbar | ✅ |
+| Logo assets committed — `public/logo/` SVG + PNGs served statically | ✅ |
+| Auth pages — real lockup SVG logo inside card, replaces placeholder | ✅ |
+| Favicon — app.letroflow.com root layout (`src/app/layout.tsx`) | ✅ |
 | Remaining mobile page layouts (Properties, Team, Dashboard) | 🔜 |
 | Stripe billing integration | 🔜 |
 
@@ -421,6 +431,84 @@ The final `DELETE FROM organisations` cascades automatically to: `profiles`, `in
 ⚠️ Non-owner account deletion doesn't call the function — it just deletes the auth user and relies on `profiles.user_id → auth.users ON DELETE CASCADE`.
 
 The Settings page Danger Zone card shows role-appropriate warning text (`currentUser.role === 'owner'` to detect), and requires typing `DELETE` in a confirmation input before the button activates.
+
+### Landing page architecture
+
+The landing page lives at `src/app/landing/` — a standalone route group, fully isolated from `(auth)` and `(dashboard)`.
+
+**Files:**
+- `src/app/landing/layout.tsx` — Plus Jakarta Sans font (weights 400–800), imports `landing.css`, full metadata + favicon icons
+- `src/app/landing/landing.css` — All landing-specific styles (`.glass`, `.grad`, `.btn-primary`, `.feat-card`, navbar, mobile menu, scroll reveal, pricing, compliance rows). Never mix with `globals.css`.
+- `src/app/landing/page.tsx` — Full React landing page with sections: hero, features, how-it-works, compliance, pricing
+- `src/app/landing/GooeyNav.tsx` — TypeScript GooeyNav component (see below)
+- `src/app/landing/GooeyNav.css` — Gooey effect styles with Crystal color tokens
+
+**Hostname routing (middleware.ts):**
+```typescript
+const host = request.headers.get('host') ?? ''
+const isMarketingDomain = host === 'letroflow.com' || host === 'www.letroflow.com'
+if (isMarketingDomain) {
+  const url = request.nextUrl.clone()
+  url.pathname = '/landing'
+  return NextResponse.rewrite(url)
+}
+```
+This check runs **before** Supabase auth in middleware — marketing domain gets an immediate rewrite with no auth overhead. `/landing` and `/invite/` are also in the `isPublic` list.
+
+Local dev: visit `http://localhost:3000/landing` directly (hostname check only fires on `letroflow.com`).
+
+**Navbar (`#lf-navbar`):**
+- Fixed, floating pill: `position: fixed; top: 14px; left: 50%; transform: translateX(-50%)`
+- `overflow: hidden` is **required** on the navbar wrapper to clip the GooeyNav filter's `inset: -75px` black `::before` bleed box
+- Mobile menu uses `max-height` + `overflow: hidden` transition. Set `borderTop` and `padding` conditionally in JSX (not CSS) — they render even at `max-height: 0` otherwise
+
+**Anchor scroll offset:** All sections navigated to via nav links have `scrollMarginTop: '90px'` to clear the fixed navbar.
+
+### GooeyNav component (`src/app/landing/GooeyNav.tsx`)
+
+Gooey blob physics: SVG filter `feGaussianBlur + feColorMatrix` + `mix-blend-mode: lighten` + black `::before` backdrop clipped by `overflow: hidden` on the parent.
+
+**Scroll-to-clear behaviour:**
+- `justClickedRef` + 900ms `setTimeout` (`clickTimerRef`) creates an ignore window after a click, preventing the anchor-scroll from immediately clearing the active highlight
+- `clearActive()`: sets `activeIndex(-1)`, removes `.active` class from filter/text refs, sets width/height to `'0'`, and **sets `textRef.current.innerText = ''`** — the last step is required to prevent ghost text from leaking out at `height: 0`
+- `.effect.text { overflow: hidden }` in CSS clips any remaining ghost text — apply on `.effect.text` only, **not** `.effect` base class (that clips the filter `::before` bleed and breaks particle animations)
+
+**TypeScript gotchas:**
+```typescript
+const noise = (n: number = 1) => ...           // must annotate n — strict TS complains at `(n = 1)`
+const clickTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)  // needs explicit undefined
+```
+
+**Crystal color tokens in `GooeyNav.css`:**
+```css
+--gooey-color-1: #818cf8;  /* indigo */
+--gooey-color-2: #67e8f9;  /* cyan */
+--gooey-color-3: #34d399;  /* mint */
+--gooey-color-4: #fbbf24;  /* amber */
+```
+Prefix is `--gooey-color-*` (not `--color-*`) to avoid polluting the global namespace.
+
+### Auth page logo pattern
+
+All auth pages (login, signup, onboarding, invite) use the real SVG lockup instead of a placeholder. Logo is placed **inside** the card div so it aligns with the input fields:
+
+```tsx
+{/* Inside the card padding div, above the heading */}
+<div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+  {/* eslint-disable-next-line @next/next/no-img-element */}
+  <img src="/logo/letroflow-lockup-dark.svg" alt="LetroFlow" height={38} style={{ display: 'block' }} />
+</div>
+```
+
+Do **not** place the logo above/outside the card — it centres against the full container width (400px), not the card's padded input area, and will look misaligned.
+
+**Logo assets** live in `public/logo/` (committed to git — must be committed for Vercel to serve them):
+- `letroflow-mark.svg` — icon only (used for favicon)
+- `letroflow-lockup-dark.svg` — icon + wordmark on dark backgrounds
+- `letroflow-lockup-light.svg` — icon + wordmark on light backgrounds
+- `public/logo/png/` — PNG sizes: 16, 32, 48, 180, 192, 512
+
+**Favicon** is wired in `src/app/layout.tsx` via the `metadata.icons` field — applies to `app.letroflow.com`. The landing layout (`src/app/landing/layout.tsx`) has its own separate favicon config.
 
 ---
 
