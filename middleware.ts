@@ -2,6 +2,20 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  const host = request.headers.get('host') ?? ''
+  const isMarketingDomain = host === 'letroflow.com' || host === 'www.letroflow.com'
+
+  // ── Marketing domain: rewrite every path to /landing ──────────────────────
+  // letroflow.com/* → /landing (the isolated landing page route)
+  // Skip static assets — they are handled by the matcher below.
+  if (isMarketingDomain) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/landing'
+    return NextResponse.rewrite(url)
+  }
+
+  // ── App domain (app.letroflow.com / localhost) ─────────────────────────────
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -26,9 +40,13 @@ export async function middleware(request: NextRequest) {
   // Refresh the session — must be called before any redirect logic
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
   const isAuthPage = pathname === '/login' || pathname === '/signup'
-  const isPublic = isAuthPage || pathname.startsWith('/auth/') || pathname.startsWith('/api/auth/')
+  const isPublic =
+    isAuthPage ||
+    pathname.startsWith('/auth/') ||
+    pathname.startsWith('/api/auth/') ||
+    pathname.startsWith('/invite/') ||
+    pathname.startsWith('/landing')
 
   // Unauthenticated user hitting a protected route → send to login
   if (!user && !isPublic && pathname !== '/') {
