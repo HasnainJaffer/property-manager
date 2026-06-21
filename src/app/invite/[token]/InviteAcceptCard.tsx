@@ -124,6 +124,12 @@ export default function InviteAcceptCard({ token, orgName, roleLabel, inviterNam
         padding: '32px 28px',
       }}
     >
+      {/* Brand */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo/letroflow-lockup-dark.svg" alt="LetroFlow" height={38} style={{ display: 'block' }} />
+      </div>
+
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--text)', margin: '0 0 6px', letterSpacing: '-0.01em' }}>

@@ -15,6 +15,14 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "LetroFlow",
   description: "Property management platform for UK landlords",
+  icons: {
+    icon: [
+      { url: '/logo/letroflow-mark.svg', type: 'image/svg+xml' },
+      { url: '/logo/png/letroflow-mark-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/logo/png/letroflow-mark-16.png', sizes: '16x16', type: 'image/png' },
+    ],
+    apple: '/logo/png/letroflow-mark-180.png',
+  },
 };
 
 export default function RootLayout({

@@ -124,24 +124,6 @@ export default function OnboardingPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22, ease: 'easeOut' }}
     >
-      {/* Brand mark */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
-        <div style={{
-          width: 32, height: 32, borderRadius: 9, position: 'relative', flexShrink: 0,
-          background: 'conic-gradient(from 140deg, var(--indigo), var(--cyan), var(--mint), var(--indigo))',
-          boxShadow: '0 6px 20px var(--glow-i), inset 0 0 0 1px rgba(255,255,255,.2)',
-        }}>
-          <div style={{
-            position: 'absolute', inset: 7, borderRadius: 4,
-            background: 'var(--bg)',
-            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.06)',
-          }} />
-        </div>
-        <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--text)' }}>
-          LetroFlow
-        </span>
-      </div>
-
       {/* Step indicator */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 20 }}>
         {['Account', 'Organisation'].map((label, i) => {
@@ -194,6 +176,10 @@ export default function OnboardingPage() {
         boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset, 0 16px 40px -8px rgba(0,0,0,0.5)',
         padding: '28px 28px 24px',
       }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo/letroflow-lockup-dark.svg" alt="LetroFlow" height={38} style={{ display: 'block' }} />
+        </div>
         <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', margin: '0 0 4px', letterSpacing: '-0.01em' }}>
           Create your organisation
         </h1>
