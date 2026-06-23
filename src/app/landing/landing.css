@@ -3,6 +3,11 @@
  * CSS variables (--bg, --indigo, --mint, etc.) come from globals.css :root.
  */
 
+/* Prevent any overflowing element from shifting position:fixed elements on mobile.
+   overflow-x: clip (not hidden) — clips without creating a scroll container,
+   so position:fixed elements remain viewport-relative. */
+html, body { overflow-x: clip; }
+
 .landing-root {
   overflow-x: hidden;
   scroll-behavior: smooth;
@@ -58,8 +63,9 @@
   background: rgba(7,9,15,0.75);
   border: 1px solid var(--border);
   border-radius: 14px;
-  width: calc(100% - 32px);
-  max-width: 1160px;
+  /* 100vw (viewport unit) instead of 100% avoids the browser quirk where
+     document-level horizontal overflow shifts position:fixed elements */
+  width: min(calc(100vw - 32px), 1160px);
   overflow: hidden;
   transition: border-color 0.3s ease;
 }
@@ -198,6 +204,103 @@
 /* ── Footer links ── */
 .lf-footer-link { font-size: 14px; color: var(--text-dim); text-decoration: none; transition: color 0.18s ease; }
 .lf-footer-link:hover { color: var(--text); }
+
+/* ── Mockup responsive layout ── */
+.lf-mockup-shell {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  min-height: 420px;
+}
+.lf-mockup-sidebar {
+  background: rgba(255,255,255,0.015);
+  border-right: 1px solid rgba(255,255,255,0.07);
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+}
+.lf-mockup-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.lf-mockup-lower {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+@media (max-width: 767px) {
+  .lf-mockup-shell    { grid-template-columns: 1fr; min-height: auto; }
+  .lf-mockup-sidebar  { display: none; }
+  .lf-mockup-kpis     { grid-template-columns: repeat(2, 1fr); }
+  .lf-mockup-lower    { grid-template-columns: 1fr; }
+  .lf-mockup-search   { display: none !important; }
+}
+
+/* ── Stats grid — 3 layouts only: 4-col → 2×2 → 4-row ── */
+.lf-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+@media (max-width: 860px) {
+  /* gap: 0 so cell padding creates equal spacing on both sides of each divider line */
+  .lf-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 0; }
+  .lf-stats-grid .stat-item:nth-child(3) { border-left: none !important; }
+  .lf-stats-grid .stat-item:nth-child(3),
+  .lf-stats-grid .stat-item:nth-child(4) { padding-top: 16px !important; }
+
+  /* All four line segments use pseudo-elements so each can be shifted 8px away from
+     the central intersection, creating a gap where all four segments would otherwise meet */
+  .lf-stats-grid .stat-item:nth-child(1) { border-bottom: none !important; position: relative; padding-bottom: 16px !important; }
+  .lf-stats-grid .stat-item:nth-child(2) { border-bottom: none !important; border-left: none !important; position: relative; padding-bottom: 16px !important; }
+  .lf-stats-grid .stat-item:nth-child(4) { border-left: none !important; position: relative; }
+
+  /* Vertical line — top-right cell (99.9%): shifts up 8px → gap at bottom (centre) */
+  .lf-stats-grid .stat-item:nth-child(2)::before {
+    content: ''; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 1px;
+    background: var(--border);
+    transform: translateY(-8px);
+  }
+
+  /* Vertical line — bottom-right cell (UK): shifts down 8px → gap at top (centre) */
+  .lf-stats-grid .stat-item:nth-child(4)::before {
+    content: ''; position: absolute;
+    left: 0; top: 0; bottom: 0; width: 1px;
+    background: var(--border);
+    transform: translateY(8px);
+  }
+
+  /* Horizontal line — left cell (500+): shifts left 8px → right end retreats from centre */
+  .lf-stats-grid .stat-item:nth-child(1)::after {
+    content: ''; position: absolute;
+    bottom: 0; left: 0; right: 0; height: 1px;
+    background: var(--border);
+    transform: translateX(-8px);
+  }
+
+  /* Horizontal line — right cell (99.9%): shifts right 8px → left end retreats from centre */
+  .lf-stats-grid .stat-item:nth-child(2)::after {
+    content: ''; position: absolute;
+    bottom: 0; left: 0; right: 0; height: 1px;
+    background: var(--border);
+    transform: translateX(8px);
+  }
+}
+@media (max-width: 480px) {
+  .lf-stats-grid { grid-template-columns: 1fr; }
+  .lf-stats-grid .stat-item { border-left: none !important; border-bottom: none !important; padding: 16px 0; }
+  .lf-stats-grid .stat-item:first-child { padding-top: 0; }
+  .lf-stats-grid .stat-item:last-child { padding-bottom: 0; }
+  .lf-stats-grid .stat-item:nth-child(1),
+  .lf-stats-grid .stat-item:nth-child(2),
+  .lf-stats-grid .stat-item:nth-child(3) { border-bottom: 1px solid var(--border) !important; }
+  .lf-stats-grid .stat-item:nth-child(2) { padding-top: 16px !important; }
+  .lf-stats-grid .stat-item:nth-child(3) { padding-bottom: 16px !important; }
+  /* Suppress all pseudo-element lines inherited from the 2×2 breakpoint */
+  .lf-stats-grid .stat-item::before,
+  .lf-stats-grid .stat-item::after { display: none; }
+}
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {

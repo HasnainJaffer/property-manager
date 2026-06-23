@@ -164,75 +164,187 @@ export default function LandingPage() {
               <div style={{ flex: 1, background: 'rgba(255,255,255,0.06)', borderRadius: '5px', height: '20px', maxWidth: '220px', margin: '0 auto' }} aria-hidden="true" />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', minHeight: '360px' }} role="img" aria-label="LetroFlow dashboard preview">
-              {/* Sidebar */}
-              <div style={{ background: 'rgba(255,255,255,0.015)', borderRight: '1px solid rgba(255,255,255,0.07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', background: 'rgba(129,140,248,0.12)', borderRadius: '8px', marginBottom: '12px' }}>
+            <div className="lf-mockup-shell" role="img" aria-label="LetroFlow dashboard preview">
+
+              {/* ── Sidebar — matches reference image: icon + blurred skeleton nav ── */}
+              <div className="lf-mockup-sidebar">
+                {/* Top: logo icon + blurred org text */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 9px', borderRadius: 8, background: 'rgba(129,140,248,0.08)', border: '1px solid rgba(129,140,248,0.45)', marginBottom: 16 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/logo/letroflow-mark.svg" alt="" aria-hidden="true" width={26} height={26} style={{ borderRadius: '6px', flexShrink: 0, display: 'block' }} />
-                  <div>
-                    <div style={{ width: '58px', height: '7px', background: 'rgba(255,255,255,0.28)', borderRadius: '4px' }} />
-                    <div style={{ width: '38px', height: '5px', background: 'rgba(255,255,255,0.14)', borderRadius: '4px', marginTop: '5px' }} />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/logo/png/letroflow-mark-48.png" alt="" width={28} height={28} style={{ display: 'block', flexShrink: 0 }} aria-hidden="true" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ height: 7, width: '72%', borderRadius: 3, background: 'rgba(255,255,255,0.22)', marginBottom: 5 }} />
+                    <div style={{ height: 5, width: '50%', borderRadius: 2, background: 'rgba(255,255,255,0.1)' }} />
                   </div>
                 </div>
-                {([['64px','0.18'],['76px','0.18'],['56px','0.18']] as const).map(([w, op], i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px', borderRadius: '7px' }}>
-                    <div style={{ width: '14px', height: '14px', background: `rgba(255,255,255,${op})`, borderRadius: '3px' }} />
-                    <div style={{ width: w, height: '7px', background: `rgba(255,255,255,${op})`, borderRadius: '4px' }} />
+
+                {/* Nav skeleton rows */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* Active highlighted row with badge — first item, matches Dashboard being selected */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 7px', borderRadius: 6, background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.28)' }}>
+                    <div style={{ width: 9, height: 9, borderRadius: 2, background: '#818cf8', flexShrink: 0 }} />
+                    <div style={{ height: 7, flex: 1, borderRadius: 3, background: 'rgba(255,255,255,0.25)' }} />
+                    <div style={{ width: 17, height: 17, borderRadius: '50%', background: '#fb7185', color: '#fff', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</div>
                   </div>
-                ))}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px', background: 'rgba(129,140,248,0.1)', borderRadius: '7px' }}>
-                  <div style={{ width: '14px', height: '14px', background: 'rgba(129,140,248,0.5)', borderRadius: '3px' }} />
-                  <div style={{ width: '52px', height: '7px', background: 'rgba(129,140,248,0.5)', borderRadius: '4px' }} />
-                  <div style={{ marginLeft: 'auto', width: '16px', height: '16px', background: 'rgba(251,113,133,0.6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', color: '#fb7185', fontWeight: 700 }}>2</div>
+
+                  {/* Plain rows below */}
+                  {[52, 66, 44, 57, 42].map((w, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <div style={{ width: 9, height: 9, borderRadius: 2, background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
+                      <div style={{ height: 7, width: `${w}%`, borderRadius: 3, background: 'rgba(255,255,255,0.1)' }} />
+                    </div>
+                  ))}
                 </div>
-                {(['84px','68px'] as const).map((w, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px', borderRadius: '7px' }}>
-                    <div style={{ width: '14px', height: '14px', background: 'rgba(255,255,255,0.18)', borderRadius: '3px' }} />
-                    <div style={{ width: w, height: '7px', background: 'rgba(255,255,255,0.18)', borderRadius: '4px' }} />
+
+                {/* User card — gradient avatar + blurred name/role */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 9px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}>
+                  <div style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, background: 'linear-gradient(135deg, #818cf8, #67e8f9)' }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ height: 6, width: '68%', borderRadius: 3, background: 'rgba(255,255,255,0.18)', marginBottom: 5 }} />
+                    <div style={{ height: 5, width: '45%', borderRadius: 2, background: 'rgba(255,255,255,0.1)' }} />
                   </div>
-                ))}
+                </div>
               </div>
 
-              {/* Main panel */}
-              <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px' }}>
-                  {([['£24,800','Rent collected','#34d399'],['2','In arrears','#fb7185'],['8','Properties','#818cf8'],['94%','Occupancy','#67e8f9']] as const).map(([val, label, color]) => (
-                    <div key={label} className="glass" style={{ padding: '12px', borderRadius: '10px' }}>
-                      <div style={{ fontSize: '20px', fontWeight: 700, color }}>{val}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>{label}</div>
-                    </div>
-                  ))}
-                </div>
+              {/* ── Main panel — matches Topbar + dashboard page layout ── */}
+              <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-                <div className="glass" style={{ padding: '12px', borderRadius: '10px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Compliance</div>
-                  {([['Gas Safety — 14 Church St','pill-green','Valid'],['EICR — Flat 3B','pill-amber','Expiring soon'],['EPC — 22 Oak Avenue','pill-red','Expired']] as const).map(([name, pill, status]) => (
-                    <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <span style={{ fontSize: '11px', color: 'var(--text)' }}>{name}</span>
-                      <span className={`pill ${pill}`}>{status}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="glass" style={{ padding: '12px', borderRadius: '10px', flex: 1 }}>
-                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Rent Ledger</div>
-                  {([
-                    ['Sarah Johnson','£1,200','pill-green','Paid','linear-gradient(135deg,#818cf8,#67e8f9)'],
-                    ['Marcus Townsend','£950','pill-red','Overdue','linear-gradient(135deg,#f59e0b,#ef4444)'],
-                    ['Priya Sharma','£1,450','pill-green','Paid','linear-gradient(135deg,#34d399,#0891b2)'],
-                  ] as const).map(([name, amount, pill, status, grad]) => (
-                    <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: grad, opacity: 0.7 }} />
-                        <span style={{ fontSize: '11px', color: 'var(--text)' }}>{name}</span>
+                {/* Topbar */}
+                <div style={{ padding: '12px 14px 8px', background: 'linear-gradient(180deg, #07090f 62%, transparent)', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <h2 style={{ fontSize: 14, fontWeight: 600, color: '#e7ecf3', margin: 0, lineHeight: 1.2 }}>Dashboard</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {/* Search bar — hidden on mobile via .lf-mockup-search */}
+                      <div className="lf-mockup-search" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 9px', height: 24, borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', minWidth: 150 }}>
+                        <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="rgba(152,162,179,0.5)" strokeWidth={2.5} strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <span style={{ fontSize: 8, color: 'rgba(152,162,179,0.45)', flex: 1 }}>Search properties, tenants…</span>
+                        <kbd style={{ fontSize: 7, padding: '0 3px', borderRadius: 3, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(152,162,179,0.5)' }}>⌘K</kbd>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 600 }}>{amount}</span>
-                        <span className={`pill ${pill}`}>{status}</span>
+                      {/* Theme toggle */}
+                      <div style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} aria-hidden="true">
+                        <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="rgba(152,162,179,0.6)" strokeWidth={2} strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                      </div>
+                      {/* Bell with red dot */}
+                      <div style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', position: 'relative' }} aria-hidden="true">
+                        <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="rgba(152,162,179,0.6)" strokeWidth={2} strokeLinecap="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        <div style={{ position: 'absolute', top: 4, right: 4, width: 4, height: 4, borderRadius: '50%', background: '#fb7185', boxShadow: '0 0 0 1px #07090f' }} />
                       </div>
                     </div>
-                  ))}
+                  </div>
+                  <p style={{ fontSize: 9, color: '#98a2b3', margin: '4px 0 0' }}>6 active tenancies · 2 void units</p>
+                </div>
+
+                {/* Page content */}
+                <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+                  {/* Alert banner — amber, matches dashboard AnimatePresence banner */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 10px', borderRadius: 7, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.28)' }}>
+                    <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth={2} strokeLinecap="round" style={{ flexShrink: 0 }} aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <span style={{ fontSize: 8.5, color: '#98a2b3', flex: 1 }}>1 compliance certificate has expired — needs immediate renewal.</span>
+                    <span style={{ fontSize: 8.5, color: '#fbbf24', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>View →</span>
+                  </div>
+
+                  {/* 4 KPI cards — correct labels matching real dashboard */}
+                  <div className="lf-mockup-kpis">
+                    {(([
+                      { label: 'Monthly Rent Roll', value: '£12,400', sub: '6 active tenancies', valueColor: '#e7ecf3' },
+                      { label: 'Arrears',           value: '£950',    sub: '1 tenant overdue',   valueColor: '#fb7185' },
+                      { label: 'Void Units',        value: '2',       sub: 'of 8 units vacant',  valueColor: '#fbbf24' },
+                      { label: 'Expiring Soon',     value: '3',       sub: 'within 60 days',     valueColor: '#fbbf24' },
+                    ]) as Array<{ label: string; value: string; sub: string; valueColor: string }>).map(({ label, value, sub, valueColor }) => (
+                      <div key={label} className="glass" style={{ padding: '10px 11px', borderRadius: 9 }}>
+                        <div style={{ fontSize: 7, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(152,162,179,0.7)', marginBottom: 5 }}>{label}</div>
+                        <div style={{ fontSize: 16, fontWeight: 600, color: valueColor, lineHeight: 1.1 }}>{value}</div>
+                        <div style={{ fontSize: 7.5, color: valueColor === '#fb7185' ? 'rgba(251,113,133,0.8)' : '#98a2b3', marginTop: 3 }}>{sub}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Lower 2-col: Rent Collection | Compliance Alerts */}
+                  <div className="lf-mockup-lower" style={{ textAlign: 'left' }}>
+
+                    {/* Rent Collection card */}
+                    <div className="glass" style={{ padding: '10px 11px', borderRadius: 9, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ fontSize: 7.5, fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(152,162,179,0.7)' }}>Rent Collection — June 2026</div>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+                        {(([['Total Due','£12,400','#e7ecf3'],['Collected','£11,450','#34d399'],['Outstanding','£950','#fb7185']]) as Array<[string,string,string]>).map(([lbl, val, col]) => (
+                          <div key={lbl}>
+                            <div style={{ fontSize: 6.5, color: 'rgba(152,162,179,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{lbl}</div>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: col }}>{val}</div>
+                          </div>
+                        ))}
+                        <div style={{ marginLeft: 'auto', fontSize: 8, color: 'rgba(152,162,179,0.6)' }}>92%</div>
+                      </div>
+                      {/* Progress bar */}
+                      <div style={{ height: 3, borderRadius: 3, background: 'rgba(255,255,255,0.06)' }}>
+                        <div style={{ width: '92%', height: '100%', borderRadius: 3, background: 'linear-gradient(90deg, #34d399, #67e8f9)' }} />
+                      </div>
+                      <div style={{ fontSize: 7.5, fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(152,162,179,0.7)', marginTop: 2 }}>Overdue Payments</div>
+                      {/* Table header */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto auto', gap: 5, paddingBottom: 4, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                        {(['Tenant','Property','Due','Amount','Age'] as const).map(h => (
+                          <div key={h} style={{ fontSize: 6.5, color: 'rgba(152,162,179,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: h === 'Tenant' ? 'left' : 'right' }}>{h}</div>
+                        ))}
+                      </div>
+                      {/* Single overdue row */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto auto', gap: 5, alignItems: 'center' }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 500, color: '#e7ecf3' }}>M. Townsend</span>
+                        <span style={{ fontSize: 7.5, color: '#98a2b3', textAlign: 'right' }}>Oak Ave</span>
+                        <span style={{ fontSize: 7, color: '#98a2b3', fontFamily: 'monospace', textAlign: 'right', whiteSpace: 'nowrap' }}>09/06/26</span>
+                        <span style={{ fontSize: 8.5, fontWeight: 600, color: '#e7ecf3', textAlign: 'right' }}>£950</span>
+                        <span style={{ fontSize: 7, padding: '2px 4px', borderRadius: 4, background: 'rgba(251,113,133,0.12)', color: '#fb7185', fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap' }}>14d</span>
+                      </div>
+                    </div>
+
+                    {/* Compliance Alerts card */}
+                    <div className="glass" style={{ padding: '10px 11px', borderRadius: 9, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ fontSize: 7.5, fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(152,162,179,0.7)' }}>Compliance Alerts</div>
+                      {/* Table header */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 5, paddingBottom: 4, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                        {(['Certificate','Property','Expiry','Status'] as const).map(h => (
+                          <div key={h} style={{ fontSize: 6.5, color: 'rgba(152,162,179,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: h === 'Certificate' ? 'left' : 'right' }}>{h}</div>
+                        ))}
+                      </div>
+                      {(([
+                        ['EPC',         '22 Oak Ave',   '03/01/26', 'Expired',  '#fb7185', 'rgba(251,113,133,0.12)'],
+                        ['EICR',        'Flat 3B',      '01/08/26', '41d left', '#fbbf24', 'rgba(251,191,36,0.12)' ],
+                        ['Gas Safety',  '14 Church St', '15/03/26', 'Valid',    '#34d399', 'rgba(52,211,153,0.12)' ],
+                        ['HMO Licence', 'Maple House',  '30/09/26', 'Valid',    '#34d399', 'rgba(52,211,153,0.12)' ],
+                      ]) as Array<[string,string,string,string,string,string]>).map(([cert, prop, expiry, status, color, bg], i) => (
+                        <div key={cert} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 5, padding: '4px 0', borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.05)' : 'none', alignItems: 'center' }}>
+                          <span style={{ fontSize: 8.5, color: '#e7ecf3' }}>{cert}</span>
+                          <span style={{ fontSize: 7.5, color: '#98a2b3', textAlign: 'right', whiteSpace: 'nowrap' }}>{prop}</span>
+                          <span style={{ fontSize: 7, color: '#98a2b3', fontFamily: 'monospace', textAlign: 'right', whiteSpace: 'nowrap' }}>{expiry}</span>
+                          <span style={{ fontSize: 7, padding: '2px 4px', borderRadius: 4, background: bg, color, fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap' }}>{status}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Upcoming Renewals card */}
+                    <div className="glass" style={{ padding: '10px 11px', borderRadius: 9, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ fontSize: 7.5, fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(152,162,179,0.7)' }}>Upcoming Renewals</div>
+                      {/* Table header */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 5, paddingBottom: 4, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                        {(['Tenant','Property','Ends'] as const).map(h => (
+                          <div key={h} style={{ fontSize: 6.5, color: 'rgba(152,162,179,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: h === 'Tenant' ? 'left' : 'right' }}>{h}</div>
+                        ))}
+                      </div>
+                      {(([
+                        ['J. Wilson',  'Oak Ave',    '30/09/26', '99d',  '#fbbf24', 'rgba(251,191,36,0.12)' ],
+                        ['K. Osei',    'Flat 3B',    '15/10/26', '114d', '#fbbf24', 'rgba(251,191,36,0.12)' ],
+                        ['S. Patel',   'Church St',  '01/11/26', '131d', '#98a2b3', 'rgba(255,255,255,0.06)'],
+                        ['T. Brennan', 'Maple House','28/11/26', '158d', '#98a2b3', 'rgba(255,255,255,0.06)'],
+                      ]) as Array<[string,string,string,string,string,string]>).map(([tenant, prop, ends, days, col, bg], i) => (
+                        <div key={tenant} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 5, padding: '4px 0', borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.05)' : 'none', alignItems: 'center' }}>
+                          <span style={{ fontSize: 8.5, color: '#e7ecf3' }}>{tenant}</span>
+                          <span style={{ fontSize: 7.5, color: '#98a2b3', textAlign: 'right', whiteSpace: 'nowrap' }}>{prop}</span>
+                          <span style={{ fontSize: 7, padding: '2px 4px', borderRadius: 4, background: bg, color: col, fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap' }}>{days}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                  </div>
                 </div>
               </div>
             </div>
@@ -244,7 +356,7 @@ export default function LandingPage() {
       {/* ── STATS ── */}
       <section style={{ padding: '0 24px 80px' }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-          <div className="glass reveal" style={{ padding: '28px 32px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: '24px' }} role="region" aria-label="Platform statistics">
+          <div className="glass reveal lf-stats-grid" style={{ padding: '28px 32px' }} role="region" aria-label="Platform statistics">
             <div className="stat-item" style={{ textAlign: 'center', padding: '0 16px' }}>
               <div className="grad" style={{ fontSize: '32px', fontWeight: 800, letterSpacing: '-1px' }}>500+</div>
               <div style={{ fontSize: '13px', color: 'var(--text-dim)', marginTop: '4px' }}>Properties managed</div>
