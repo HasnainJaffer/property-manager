@@ -334,6 +334,7 @@ const org = invite.organisations as unknown as { name: string } | null  // ✅
 | Logo assets committed — `public/logo/` SVG + PNGs served statically | ✅ |
 | Auth pages — real lockup SVG logo inside card, replaces placeholder | ✅ |
 | Favicon — app.letroflow.com root layout (`src/app/layout.tsx`) | ✅ |
+| Landing page — stats grid responsive layouts + mockup sidebar refinements | ✅ |
 | Remaining mobile page layouts (Properties, Team, Dashboard) | 🔜 |
 | Stripe billing integration | 🔜 |
 
