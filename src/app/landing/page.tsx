@@ -492,9 +492,9 @@ export default function LandingPage() {
             <p style={{ fontSize: '16px', color: 'var(--text-dim)' }}>No setup fees. No hidden costs. Cancel any time.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: '16px', alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: '16px', alignItems: 'stretch' }}>
             {/* Free */}
-            <div className="glass pricing-card reveal" style={{ padding: '28px', borderRadius: '16px' }}>
+            <div className="glass pricing-card reveal" style={{ padding: '28px', borderRadius: '16px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>Free</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '8px' }}>
                 <span style={{ fontSize: '40px', fontWeight: 800, letterSpacing: '-1px' }}>£0</span>
@@ -516,14 +516,14 @@ export default function LandingPage() {
             </div>
 
             {/* Starter */}
-            <div className="glass pricing-card pricing-featured reveal" style={{ padding: '28px', borderRadius: '16px', position: 'relative' }}>
+            <div className="glass pricing-card pricing-featured reveal" style={{ padding: '28px', borderRadius: '16px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
               <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg,var(--indigo),var(--indigo-2))', borderRadius: '100px', padding: '4px 14px', fontSize: '12px', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap' }}>Most popular</div>
               <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--indigo)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>Starter</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '8px' }}>
                 <span style={{ fontSize: '40px', fontWeight: 800, letterSpacing: '-1px' }}>£29</span>
                 <span style={{ fontSize: '14px', color: 'var(--text-dim)' }}>/ month</span>
               </div>
-              <p style={{ fontSize: '14px', color: 'var(--text-dim)', marginBottom: '24px' }}>For landlords with a growing portfolio.</p>
+              <p style={{ fontSize: '14px', color: 'var(--text-dim)', marginBottom: '45px' }}>For landlords with a growing portfolio.</p>
               <div className="lf-divider" style={{ marginBottom: '20px' }} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '28px' }}>
                 {['Up to 20 properties','Everything in Free','Up to 5 team members','Email compliance alerts','Maintenance kanban'].map(feat => (
@@ -542,13 +542,13 @@ export default function LandingPage() {
             </div>
 
             {/* Pro */}
-            <div className="glass pricing-card reveal" style={{ padding: '28px', borderRadius: '16px' }}>
+            <div className="glass pricing-card reveal" style={{ padding: '28px', borderRadius: '16px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--cyan)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>Pro</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '8px' }}>
                 <span style={{ fontSize: '40px', fontWeight: 800, letterSpacing: '-1px' }}>£79</span>
                 <span style={{ fontSize: '14px', color: 'var(--text-dim)' }}>/ month</span>
               </div>
-              <p style={{ fontSize: '14px', color: 'var(--text-dim)', marginBottom: '24px' }}>For property managers and agencies.</p>
+              <p style={{ fontSize: '14px', color: 'var(--text-dim)', marginBottom: '45px' }}>For property managers and agencies.</p>
               <div className="lf-divider" style={{ marginBottom: '20px' }} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '28px' }}>
                 {['Unlimited properties','Everything in Starter','Unlimited team members','Multiple organisations','Priority support'].map(feat => (
